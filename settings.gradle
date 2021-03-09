@@ -1,0 +1,3 @@
+include ':comclient'
+include ':app'
+rootProject.name = "Com App"
