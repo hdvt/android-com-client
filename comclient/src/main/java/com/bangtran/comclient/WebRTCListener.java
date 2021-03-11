@@ -10,4 +10,5 @@ public interface WebRTCListener {
     void onIceCandidate(IceCandidate candidates);
     void onMediaState(MediaState state);
     void onLocalSDP(JSONObject sdp);
+    void onRemoteSDP(JSONObject sdp);
 }

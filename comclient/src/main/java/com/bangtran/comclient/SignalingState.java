@@ -5,5 +5,5 @@ public enum SignalingState {
     RINGING,
     ANSWERED,
     BUSY,
-    END
+    ENDED,
 }
