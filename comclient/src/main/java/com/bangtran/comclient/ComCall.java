@@ -1,5 +1,6 @@
 package com.bangtran.comclient;
 
+
 import android.content.Context;
 import android.util.Log;
 
@@ -15,38 +16,40 @@ import java.util.List;
 import java.util.Vector;
 
 public class ComCall implements WebRTCListener {
-    String from;
-    String to;
-    ComCallListener callListener;
+    String callID;
+    String callerID;
+    String calleeID;
+    boolean incomingCall;
     boolean videoCall;
-    int callId;
+    ComCallListener callListener;
+    WebRTCConnection webRTCConnection;
     SurfaceViewRenderer localView;
     SurfaceViewRenderer remoteView;
     MediaStream localStream;
     MediaStream remoteStream;
-    WebRTCConnection webRTCConnection;
-    boolean incomingCall;
     private ComClient client;
+    private String customData;
+    private String customDataFromServer;
     private Context appContext;
+    private Vector<IceCandidate> candidates;
+
 
     public ComCall(Context appContext, ComClient client, String from, String to) {
-        this.client = client;
-        this.appContext = appContext;
-        this.from = from;
-        this.to = to;
+        this.callerID = from;
+        this.calleeID = to;
         videoCall = true;
+        this.customData = null;
+        this.customDataFromServer = null;
+        callListener = null;
         webRTCConnection = new WebRTCConnection(this);
-        client.addNewCall(this);
+        this.appContext = appContext;
+        this.client = client;
+        this.candidates = new Vector<IceCandidate>();
+        this.client.addNewCall(this);
     }
 
     public ComCall(ComClient client, String from, String to) {
-        this.client = client;
-        this.appContext = appContext;
-        this.from = from;
-        this.to = to;
-        videoCall = true;
-        webRTCConnection = new WebRTCConnection(this);
-        client.addNewCall(this);
+        this(null, client, from, to);
     }
 
     @Override
@@ -62,48 +65,20 @@ public class ComCall implements WebRTCListener {
     }
 
     @Override
-    public void onIceCandidate(IceCandidate candidates) {
-        JSONObject packet = new JSONObject();
-        try {
-            packet.put("event", "call_candidate");
-            JSONObject body = new JSONObject();
-            body.put("session_id", client.getSessionId());
-            body.put("call_id", getCallId());
-            packet.put("body", body);
-            JSONObject cand = new JSONObject();
-            if (candidates == null) {
-                cand.put("completed", true);
-            } else {
-                cand.put("candidate", candidates.sdp);
-                cand.put("sdpMid", candidates.sdpMid);
-                cand.put("sdpMLineIndex", candidates.sdpMLineIndex);
-            }
-            body.put("candidate", cand);
-            Log.d("ComCall", "onIceCandidate" + packet.toString());
-            client.sendMessage(packet, new RequestCallback() {
-                @Override
-                public void onSuccess(JSONObject data) {
-                    Log.i("ComCall", "sendCandidate success" + data.toString());
-                }
-                @Override
-                public void onError(JSONObject error) {
-                    Log.e("ComCall", "sendCandidate error" + error.toString());
-                }
-            });
-
-
-        } catch (JSONException e) {
-            e.printStackTrace();
+    public void onIceCandidate(IceCandidate candidate) {
+        if (getCallId() == null){
+            this.candidates.add(candidate);
         }
-
-
-
+        else {
+            this.sendIceCandidate(candidate);
+        }
     }
 
     @Override
     public void onMediaState(MediaState state) {
 
     }
+
 
     @Override
     public void onLocalSDP(JSONObject sdp) {
@@ -135,7 +110,7 @@ public class ComCall implements WebRTCListener {
 
             @Override
             public void onSuccess(JSONObject sdp) {
-                callListener.onSignalingStateChange(ComCall.this, SignalingState.ANSWERED);
+//                callListener.onSignalingStateChange(ComCall.this, ComCall.SignalingState.ANSWERED);
             }
 
             @Override
@@ -145,17 +120,6 @@ public class ComCall implements WebRTCListener {
         });
     }
 
-    public void setCallListener(ComCallListener listener) {
-        this.callListener = listener;
-    }
-
-    public int getCallId() {
-        return callId;
-    }
-
-    public void setCallId(int callId) {
-        this.callId = callId;
-    }
 
     public SurfaceViewRenderer getLocalView() {
         if (this.localView == null)
@@ -169,12 +133,16 @@ public class ComCall implements WebRTCListener {
         return this.remoteView;
     }
 
-    public String getFrom() {
-        return from;
+    public String getCallId() {
+        return callID;
     }
 
-    public String getTo() {
-        return to;
+    public String getCallerID() {
+        return callerID;
+    }
+
+    public String getCalleeID() {
+        return calleeID;
     }
 
     public boolean isIncomingCall() {
@@ -183,6 +151,32 @@ public class ComCall implements WebRTCListener {
 
     public void setIncomingCall(boolean incomingCall) {
         this.incomingCall = incomingCall;
+    }
+
+    public String getCustomData() {
+        return customData;
+    }
+
+    // setters
+
+    public void setCustomData(String customData) {
+        this.customData = customData;
+    }
+
+    public String getCustomDataFromServer() {
+        return customDataFromServer;
+    }
+
+    public void setCustomDataFromServer(String customDataFromServer) {
+        this.customDataFromServer = customDataFromServer;
+    }
+
+    public void setCallListener(ComCallListener listener) {
+        this.callListener = listener;
+    }
+
+    public void setCallID(String callID) {
+        this.callID = callID;
     }
 
     public Context getAppContext() {
@@ -244,25 +238,32 @@ public class ComCall implements WebRTCListener {
                 try {
                     packet.put("event", "call_start");
                     JSONObject body = new JSONObject();
-                    body.put("session_id", client.getSessionId());
-                    body.put("callee_user_id", getTo());
-                    body.put("jsep", jsep);
+                    body.put("caller_id", getCallerID());
+                    body.put("callee_id", getCalleeID());
+                    body.put("video_call", isVideoCall());
+                    body.put("offer_jsep", jsep);
+                    body.put("custom_data", getCustomData());
                     packet.put("body", body);
                     client.sendMessage(packet, new RequestCallback() {
                         @Override
                         public void onSuccess(JSONObject data) {
                             Log.i("ComCall", "makeCall success" + data.toString());
                             try {
-                                callId = data.getInt("call_id");
-                                callListener.onSignalingStateChange(ComCall.this, SignalingState.CALLING);
+                                setCallID(data.getString("call_id"));
+                                setCustomDataFromServer(data.getString("server_customdata"));
+                                for (int i = 0; i < candidates.size(); i++){
+                                    sendIceCandidate(candidates.elementAt(i));
+                                }
+                                candidates.removeAllElements();
                             } catch (JSONException e) {
                                 Log.e("ComCall", e.getMessage());
                             }
                         }
 
                         @Override
-                        public void onError(JSONObject error) {
-                            Log.e("ComClient", "Authen error" + error.toString());
+                        public void onError(ComError error) {
+                            Log.e("ComClient", "Make call error" + error.toString());
+                            ComCall.this.callListener.onError(ComCall.this, error.getCode(), error.getMessage());
                         }
                     });
                 } catch (JSONException e) {
@@ -305,26 +306,25 @@ public class ComCall implements WebRTCListener {
                 Log.d("ComCall", "Got sdp success: " + jsep.toString());
                 JSONObject packet = new JSONObject();
                 try {
-                    packet.put("event", "call_answer");
+                    packet.put("event", "call_accept");
                     JSONObject body = new JSONObject();
-                    body.put("session_id", client.getSessionId());
                     body.put("call_id", getCallId());
-                    body.put("jsep", jsep);
+                    body.put("offer_jsep", jsep);
                     packet.put("body", body);
                     client.sendMessage(packet, new RequestCallback() {
                         @Override
                         public void onSuccess(JSONObject data) {
                             Log.i("ComCall", "answerCall success" + data.toString());
-                            try {
-                                JSONObject jsep = data.getJSONObject("jsep");
-                                onRemoteSDP(jsep);
-                            } catch (JSONException e) {
-                                Log.e("ComCall", e.getMessage());
-                            }
+//                            try {
+//                                JSONObject jsep = data.getJSONObject("jsep");
+//                                onRemoteSDP(jsep);
+//                            } catch (JSONException e) {
+//                                Log.e("ComCall", e.getMessage());
+//                            }
                         }
 
                         @Override
-                        public void onError(JSONObject error) {
+                        public void onError(ComError error) {
                             Log.e("ComClient", "Authen error" + error.toString());
                         }
                     });
@@ -340,5 +340,168 @@ public class ComCall implements WebRTCListener {
         });
     }
 
+    public void ringing() {
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "call_ringing");
+            JSONObject body = new JSONObject();
+            body.put("call_id", getCallId());
+            packet.put("body", body);
+            client.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i("ComCall", "ringing success" + data.toString());
+
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e("ComClient", "ringing error" + error.toString());
+                }
+            });
+        } catch (JSONException e) {
+            Log.e("ComCall", e.getMessage());
+        }
+    }
+
+    public void hangup() {
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "call_stop");
+            JSONObject body = new JSONObject();
+            body.put("call_id", getCallId());
+            packet.put("body", body);
+            client.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i("ComCall", "hangup success" + data.toString());
+                    webRTCConnection.close();
+                    client.removeCall(ComCall.this);
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e("ComClient", "hangup error" + error.toString());
+                }
+            });
+        } catch (JSONException e) {
+            Log.e("ComCall", e.getMessage());
+        }
+    }
+
+    public void reject() {
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "call_reject");
+            JSONObject body = new JSONObject();
+            body.put("call_id", getCallId());
+            packet.put("body", body);
+            client.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i("ComCall", "reject success" + data.toString());
+                    webRTCConnection.close();
+                    client.removeCall(ComCall.this);
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e("ComClient", "reject error" + error.toString());
+                }
+            });
+        } catch (JSONException e) {
+            Log.e("ComCall", e.getMessage());
+        }
+    }
+
+    public void handleEvent(String event, JSONObject data){
+        Log.d("handleEvent", event + " - " + data.toString());
+        switch (event){
+            case "call_state": {
+                try {
+                    SignalingState state = SignalingState.values()[data.getInt("call_state")- 1];
+                    Log.d("handleEvent", state.toString());
+                    this.callListener.onSignalingStateChange(this, state);
+                } catch (JSONException e) {
+                    Log.e("ComCall", e.getMessage());
+                }
+                break;
+            }
+            case "call_sdp": {
+                try {
+                    this.onRemoteSDP(data.getJSONObject("jsep"));
+                } catch (JSONException e) {
+                    Log.e("ComCall", e.getMessage());
+                }
+                break;
+            }
+            case "call_stop": {
+                this.webRTCConnection.close();
+                this.client.removeCall(this);
+            }
+        }
+    }
+
+    // private functions
+    private void sendIceCandidate(IceCandidate candidate){
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "call_candidate");
+            JSONObject body = new JSONObject();
+            body.put("call_id", getCallId());
+            packet.put("body", body);
+            JSONObject cand = new JSONObject();
+            if (candidate == null) {
+                cand.put("completed", true);
+            } else {
+                cand.put("candidate", candidate.sdp);
+                cand.put("sdpMid", candidate.sdpMid);
+                cand.put("sdpMLineIndex", candidate.sdpMLineIndex);
+            }
+            body.put("candidate", cand);
+            Log.d("ComCall", "onIceCandidate" + packet.toString());
+            client.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i("ComCall", "sendCandidate success" + data.toString());
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e("ComCall", "sendCandidate error" + error.toString());
+                }
+            });
+
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public enum SignalingState {
+        CALLING,
+        RINGING,
+        BUSY,
+        ANSWERED,
+        ENDED,
+    }
+
+    public enum MediaState {
+        CONNECTED,
+        DISCONNECTED
+    }
+
+    public interface ComCallListener {
+        void onSignalingStateChange(ComCall call, ComCall.SignalingState state);
+
+        void onMediaStateChange(ComCall call, ComCall.MediaState state);
+
+        void onLocalStream(ComCall call);
+
+        void onRemoteStream(ComCall call);
+
+        void onError(ComCall call, int code, String description);
+    }
 
 }

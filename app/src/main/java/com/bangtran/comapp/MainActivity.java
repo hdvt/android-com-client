@@ -20,7 +20,7 @@ import android.widget.TextView;
 
 import com.bangtran.comclient.ComCall;
 import com.bangtran.comclient.ComClient;
-import com.bangtran.comclient.ComConnectionListener;
+import com.bangtran.comclient.ComError;
 import com.bangtran.comclient.utils.Utils;
 
 import org.json.JSONObject;
@@ -33,8 +33,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public static ComClient client;
     private String to;
-    public static Map<Integer, ComCall> callsMap = new HashMap<>();
-    private String accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwidXNlcl9pZCI6ImJvbiIsImlhdCI6MTUxNjIzOTAyMn0.axoHlmx6aZfEanoHG_ishWqdgmb0xyPS7OdYt1GyaAE"; // replace your access token here.
+    public static Map<String, ComCall> callsMap = new HashMap<>();
+    private String accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjozMjYsImxvZ2luX25hbWUiOiIwMzg3NTEwMTg3Iiwicm9sZSI6IlBBVElFTlQiLCJzdGF0ZSI6IkFDVElWRSIsImlhdCI6MTYxNTg4MjIyNywiZXhwIjoxNzAyMjgyMjI3fQ.z9MWafPQ36y4g2wvRHC5mBHtlhdyao61qj2j-DWP9Ls"; // replace your access token here.
     private String accessToken2 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwidXNlcl9pZCI6InkiLCJpYXQiOjE1MTYyMzkwMjJ9.5KERMgfaZgU_jdd3_Q2Gy6sMi1DMdJzjMcvyy52Dgr4"; // replace your access token here.
 
     private EditText etTo;
@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public void initAndConnectStringee() {
         client = new ComClient(this);
-        client.setConnectionListener(new ComConnectionListener() {
+        client.setConnectionListener(new ComClient.ComConnectionListener() {
             @Override
             public void onConnectionConnected(final ComClient client) {
 
@@ -86,6 +86,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         progressDialog.dismiss();
                         tvUserId.setText("Connected as: " + client.getUserId());
                         Utils.reportMessage(MainActivity.this, "Client is connected.");
+//                        client.disconnect();
+                    }
+                });
+            }
+
+            @Override
+            public void onConnectionDisconnected(ComClient client, boolean reconnecting) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        tvUserId.setText("");
+                        Utils.reportMessage(MainActivity.this, "Client is disconnected.");
+//                        client.disconnect();
                     }
                 });
             }
@@ -101,6 +114,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         startActivity(intent);
                     }
                 });
+            }
+
+            @Override
+            public void onConnectionError(ComClient client, ComError error) {
+
             }
 
 //            @Override

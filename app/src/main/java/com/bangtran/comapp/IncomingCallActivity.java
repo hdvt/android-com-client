@@ -15,9 +15,6 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.bangtran.comclient.ComCall;
-import com.bangtran.comclient.ComCallListener;
-import com.bangtran.comclient.MediaState;
-import com.bangtran.comclient.SignalingState;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -45,8 +42,8 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
     private boolean isSpeaker = false;
     private boolean isVideo = false;
 
-    private MediaState mMediaState;
-    private SignalingState mSignalingState;
+    private ComCall.MediaState mMediaState;
+    private ComCall.SignalingState mSignalingState;
 
     public static final int REQUEST_PERMISSION_CALL = 1;
     public static final int REQUEST_PERMISSION_CAMERA = 2;
@@ -64,7 +61,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
         mRemoteViewContainer = (FrameLayout) findViewById(R.id.v_remote);
 
         tvFrom = (TextView) findViewById(R.id.tv_from);
-        tvFrom.setText(mCall.getFrom());
+        tvFrom.setText(mCall.getCalleeID());
 
         tvState = (TextView) findViewById(R.id.tv_state);
 
@@ -166,22 +163,22 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
     }
 
     private void initAnswer() {
-        mCall.setCallListener(new ComCallListener() {
+        mCall.setCallListener(new ComCall.ComCallListener() {
             @Override
-            public void onSignalingStateChange(ComCall comCall, final SignalingState signalingState) {
+            public void onSignalingStateChange(ComCall comCall, final ComCall.SignalingState signalingState) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         mSignalingState = signalingState;
-                        if (signalingState == SignalingState.ANSWERED) {
+                        if (signalingState == ComCall.SignalingState.ANSWERED) {
                             tvState.setText("Starting");
-                            if (mMediaState == MediaState.CONNECTED) {
+                            if (mMediaState == ComCall.MediaState.CONNECTED) {
                                 tvState.setText("Started");
                             }
-                        } else if (signalingState == SignalingState.ENDED) {
+                        } else if (signalingState == ComCall.SignalingState.ENDED) {
                             tvState.setText("Ended");
                             if (mCall != null) {
-//                                mCall.hangup();
+                                mCall.hangup();
                             }
                             finish();
                         }
@@ -189,25 +186,17 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
                 });
             }
 
-            @Override
-            public void onError(ComCall ComCall, JSONObject error) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-//                        Utils.reportMessage(IncomingCallActivity.this, "Fails to make call.");
-                    }
-                });
-            }
+
 
            
             @Override
-            public void onMediaStateChange(ComCall call, final MediaState mediaState) {
+            public void onMediaStateChange(ComCall call, final ComCall.MediaState mediaState) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         mMediaState = mediaState;
-                        if (mediaState == MediaState.CONNECTED) {
-                            if (mSignalingState == SignalingState.ANSWERED) {
+                        if (mediaState == ComCall.MediaState.CONNECTED) {
+                            if (mSignalingState == ComCall.SignalingState.ANSWERED) {
                                 tvState.setText("Started");
                             }
                         }
@@ -239,6 +228,11 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
                         }
                     }
                 });
+            }
+
+            @Override
+            public void onError(ComCall call, int code, String description) {
+
             }
 
         });
@@ -283,7 +277,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
                 break;
             case R.id.btn_end:
                 if (mCall != null) {
-//                    mCall.hangup();
+                    mCall.hangup();
                 }
                 finish();
                 break;

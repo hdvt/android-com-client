@@ -119,6 +119,21 @@ public class WebRTCConnection {
         });
     }
 
+    public void close(){
+        if (remoteStream != null) {
+            remoteStream.dispose();
+            remoteStream = null;
+        }
+        if (localStream != null) {
+            localStream.dispose();
+            localStream = null;
+        }
+        if (pc != null && pc.signalingState() != PeerConnection.SignalingState.CLOSED)
+            pc.close();
+        pc = null;
+        mySdp = null;
+    }
+
     public void handleRemoteSDP(HandleWebRTCCallback callback) {
         ComClient.executor.execute(() -> {
             JSONObject jsep = callback.getRemoteSDP();
@@ -167,9 +182,9 @@ public class WebRTCConnection {
             Log.d("PeerConnectionObserver", "IceConnectionState: " + iceConnectionState);
             ComClient.executor.execute(() -> {
                 if (iceConnectionState == PeerConnection.IceConnectionState.CONNECTED) {
-                    webRTCListener.onMediaState(MediaState.CONNECTED);
+                    webRTCListener.onMediaState(ComCall.MediaState.CONNECTED);
                 } else if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
-                    webRTCListener.onMediaState(MediaState.DISCONNECTED);
+                    webRTCListener.onMediaState(ComCall.MediaState.DISCONNECTED);
                 }
             });
         }

@@ -16,9 +16,6 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.bangtran.comclient.ComCall;
-import com.bangtran.comclient.ComCallListener;
-import com.bangtran.comclient.MediaState;
-import com.bangtran.comclient.SignalingState;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -46,8 +43,8 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
     private boolean isMute = false;
     private boolean isSpeaker = false;
     private boolean isVideo = false;
-    private MediaState mMediaState;
-    private SignalingState mSignalingState;
+    private ComCall.MediaState mMediaState;
+    private ComCall.SignalingState mSignalingState;
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -159,32 +156,35 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
 
     private void makeCall() {
         mComCall = new ComCall(this, MainActivity.client, from, to);
+        mComCall.setCustomData("{\"call_service_id\":1,\"call_type\":\"AUDIO\"}");
         mComCall.setVideoCall(isVideoCall);
 
-        mComCall.setCallListener(new ComCallListener() {
+        mComCall.setCallListener(new ComCall.ComCallListener() {
             @Override
-            public void onSignalingStateChange(ComCall call, SignalingState signalingState) {
+            public void onSignalingStateChange(ComCall call, ComCall.SignalingState signalingState) {
 //                Log.e("Stringee", "======== Custom data: " + stringeeCall.getCustomDataFromYourServer());
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         mSignalingState = signalingState;
-                        if (signalingState == SignalingState.CALLING) {
+                        if (signalingState == ComCall.SignalingState.CALLING) {
                             tvState.setText("Outgoing call");
-                        } else if (signalingState == SignalingState.RINGING) {
+                        } else if (signalingState == ComCall.SignalingState.RINGING) {
                             tvState.setText("Ringing");
-                        } else if (signalingState == SignalingState.ANSWERED) {
+                        } else if (signalingState == ComCall.SignalingState.ANSWERED) {
                             tvState.setText("Starting");
-                            if (mMediaState == MediaState.CONNECTED) {
+                            if (mMediaState == ComCall.MediaState.CONNECTED) {
                                 tvState.setText("Started");
                             }
-                        } else if (signalingState == SignalingState.BUSY) {
+                        } else if (signalingState == ComCall.SignalingState.BUSY) {
                             tvState.setText("Busy");
-//                            mStringeeCall.hangup();
+                            if (mComCall != null)
+                                mComCall.hangup();
                             finish();
-                        } else if (signalingState == SignalingState.ENDED) {
+                        } else if (signalingState == ComCall.SignalingState.ENDED) {
                             tvState.setText("Ended");
-//                            mStringeeCall.hangup();
+                            if (mComCall != null)
+                                mComCall.hangup();
                             finish();
                         }
                     }
@@ -192,7 +192,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
             }
 
             @Override
-            public void onMediaStateChange(ComCall call, MediaState state) {
+            public void onMediaStateChange(ComCall call, ComCall.MediaState state) {
 
             }
 
@@ -202,6 +202,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
                     @Override
                     public void run() {
                         if (mComCall.isVideoCall()) {
+                            Log.d("OutgoingCallActivity", "onLocalStream");
                             mLocalViewContainer.addView(mComCall.getLocalView());
                             mComCall.renderLocalView(true);
                         }
@@ -211,11 +212,11 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
 
             @Override
             public void onRemoteStream(ComCall call) {
-                Log.d("OutgoingCallActivity", "onRemoteStream");
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         if (call.isVideoCall()) {
+                            Log.d("OutgoingCallActivity", "onRemoteStream");
                             mRemoteViewContainer.addView(call.getRemoteView());
                             call.renderRemoteView(false);
                         }
@@ -224,7 +225,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
             }
 
             @Override
-            public void onError(ComCall call, JSONObject error) {
+            public void onError(ComCall call, int code, String description) {
 
             }
         });
@@ -257,7 +258,8 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
                 }
                 break;
             case R.id.btn_end:
-//                mComCall.hangup();
+                if (mComCall != null)
+                    mComCall.hangup();
                 finish();
                 break;
             case R.id.btn_video:

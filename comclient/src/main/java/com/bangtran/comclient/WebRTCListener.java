@@ -8,7 +8,7 @@ public interface WebRTCListener {
     void onLocalStream(MediaStream stream);
     void onRemoteStream(MediaStream stream);
     void onIceCandidate(IceCandidate candidates);
-    void onMediaState(MediaState state);
+    void onMediaState(ComCall.MediaState state);
     void onLocalSDP(JSONObject sdp);
     void onRemoteSDP(JSONObject sdp);
 }
