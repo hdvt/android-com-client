@@ -28,7 +28,7 @@ public class ComClient implements SocketConnectionListener {
 
     public ComClient(Context appContext) {
         this.appContext = appContext;
-        this.serverURL = "ws://192.168.31.112:8080";
+        this.serverURL = "ws://172.16.200.239:8080";
         socketConnection = new SocketConnection(serverURL, this);
         sessionId = null;
         userId = null;
@@ -36,12 +36,6 @@ public class ComClient implements SocketConnectionListener {
         comCalls = new Vector<ComCall>();
         currentRequestId = 0;
         connected = false;
-        String fieldTrials = "WebRTC-IntelVP8/Enabled/";
-        PeerConnectionFactory.initialize(
-                PeerConnectionFactory.InitializationOptions.builder(appContext)
-                        .setFieldTrials(fieldTrials)
-                        .setEnableInternalTracer(true)
-                        .createInitializationOptions());
     }
 
     @Override

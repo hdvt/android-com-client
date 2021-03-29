@@ -276,7 +276,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
                 break;
             case R.id.btn_switch:
                 if (mComCall != null) {
-//                    mComCall.switchCamera(null);
+                    mComCall.switchCamera();
                 }
                 break;
         }
@@ -299,7 +299,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
                 }
 //                mComCall.sendCallInfo(jsonObject);
             }
-//            mComCall.enableVideo(isVideo);
+            mComCall.enableVideo(isVideo);
         }
     }
 

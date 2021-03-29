@@ -2,6 +2,7 @@ package com.bangtran.comclient;
 
 
 import android.content.Context;
+import android.graphics.Camera;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -213,7 +214,7 @@ public class ComCall implements WebRTCListener {
         webRTCConnection.initConnection(new HandleWebRTCCallback() {
             @Override
             public ComMediaConstraint getMediaConstraint() {
-                return null;
+                return new ComMediaConstraint(videoCall, true, 1280, 720, 30);
             }
 
             @Override
@@ -283,7 +284,7 @@ public class ComCall implements WebRTCListener {
         webRTCConnection.initConnection(new HandleWebRTCCallback() {
             @Override
             public ComMediaConstraint getMediaConstraint() {
-                return null;
+                return new ComMediaConstraint(videoCall, true, 1280, 720, 30);
             }
 
             @Override
@@ -414,6 +415,14 @@ public class ComCall implements WebRTCListener {
         }
     }
 
+    public void switchCamera(){
+        this.webRTCConnection.switchCamera();
+    }
+
+    public void enableVideo(boolean enabled){
+        this.webRTCConnection.setVideoEnabled(enabled);
+    }
+
     public void handleEvent(String event, JSONObject data){
         Log.d("handleEvent", event + " - " + data.toString());
         switch (event){
@@ -438,44 +447,45 @@ public class ComCall implements WebRTCListener {
             case "call_stop": {
                 this.webRTCConnection.close();
                 this.client.removeCall(this);
+                this.callListener.onSignalingStateChange(this, SignalingState.ENDED);
             }
         }
     }
 
     // private functions
     private void sendIceCandidate(IceCandidate candidate){
-//        JSONObject packet = new JSONObject();
-//        try {
-//            packet.put("event", "call_candidate");
-//            JSONObject body = new JSONObject();
-//            body.put("call_id", getCallId());
-//            packet.put("body", body);
-//            JSONObject cand = new JSONObject();
-//            if (candidate == null) {
-//                cand.put("completed", true);
-//            } else {
-//                cand.put("candidate", candidate.sdp);
-//                cand.put("sdpMid", candidate.sdpMid);
-//                cand.put("sdpMLineIndex", candidate.sdpMLineIndex);
-//            }
-//            body.put("candidate", cand);
-//            Log.d("ComCall", "onIceCandidate" + packet.toString());
-//            client.sendMessage(packet, new RequestCallback() {
-//                @Override
-//                public void onSuccess(JSONObject data) {
-//                    Log.i("ComCall", "sendCandidate success" + data.toString());
-//                }
-//
-//                @Override
-//                public void onError(ComError error) {
-//                    Log.e("ComCall", "sendCandidate error" + error.toString());
-//                }
-//            });
-//
-//
-//        } catch (JSONException e) {
-//            e.printStackTrace();
-//        }
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "call_candidate");
+            JSONObject body = new JSONObject();
+            body.put("call_id", getCallId());
+            packet.put("body", body);
+            JSONObject cand = new JSONObject();
+            if (candidate == null) {
+                cand.put("completed", true);
+            } else {
+                cand.put("candidate", candidate.sdp);
+                cand.put("sdpMid", candidate.sdpMid);
+                cand.put("sdpMLineIndex", candidate.sdpMLineIndex);
+            }
+            body.put("candidate", cand);
+            Log.d("ComCall", "onIceCandidate" + packet.toString());
+            client.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i("ComCall", "sendCandidate success" + data.toString());
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e("ComCall", "sendCandidate error" + error.toString());
+                }
+            });
+
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
 

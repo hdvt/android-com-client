@@ -133,7 +133,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
         });
-        client.connect(accessToken2);
+        client.connect(accessToken);
     }
 
     @Override

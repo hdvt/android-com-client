@@ -1,5 +1,6 @@
 package com.bangtran.comclient;
 
+import android.graphics.Camera;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -7,6 +8,7 @@ import org.json.JSONObject;
 import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
 import org.webrtc.Camera1Enumerator;
+import org.webrtc.CameraVideoCapturer;
 import org.webrtc.DataChannel;
 import org.webrtc.DefaultVideoDecoderFactory;
 import org.webrtc.DefaultVideoEncoderFactory;
@@ -27,111 +29,100 @@ import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
 public class WebRTCConnection {
-    private final String VIDEO_TRACK_ID = "1929283";
-    private final String AUDIO_TRACK_ID = "1928882";
-    private final String LOCAL_MEDIA_ID = "1198181";
+    private static PeerConnectionFactory pcFactory;
+    private static EglBase.Context eglContext;
+
     private final PeerConnectionObserver pcObserver = new PeerConnectionObserver();
-    private PeerConnection pc;
-    private PeerConnectionFactory pcFactory;
-    private SessionDescription mySdp;
     private WebRTCListener webRTCListener;
+    private PeerConnection pc;
+    private VideoCapturer videoCapturer;
+
+    private AudioSource audioSource;
+    private VideoSource videoSource;
     private MediaStream localStream;
     private MediaStream remoteStream;
-    private EglBase.Context eglContext;
     private AudioTrack audioTrack = null;
     private VideoTrack videoTrack = null;
 
+    private SessionDescription localSdp;
+
+    private ComMediaConstraint comMediaConstraint;
+
     public WebRTCConnection(WebRTCListener listener) {
         webRTCListener = listener;
-        eglContext = EglBase.create().getEglBaseContext();
-
-        final VideoEncoderFactory encoderFactory;
-        final VideoDecoderFactory decoderFactory;
-
-        encoderFactory = new DefaultVideoEncoderFactory(
-                eglContext, true /* enableIntelVp8Encoder */, false);
-        decoderFactory = new DefaultVideoDecoderFactory(eglContext);
-        pcFactory = PeerConnectionFactory.builder()
-                .setOptions(new PeerConnectionFactory.Options())
-                .setVideoEncoderFactory(encoderFactory)
-                .setVideoDecoderFactory(decoderFactory)
-                .createPeerConnectionFactory();
-    }
-
-    public EglBase.Context getEglContext() {
-        return eglContext;
     }
 
     public void initConnection(HandleWebRTCCallback callback) {
         ComClient.executor.execute(() -> {
-            MediaStream stream = null;
-            AudioSource source = pcFactory.createAudioSource(new MediaConstraints());
-            audioTrack = pcFactory.createAudioTrack(AUDIO_TRACK_ID, source);
-            VideoCapturer videoCapturer = null;
-            Camera1Enumerator enumerator = new Camera1Enumerator(false);
-            final String[] deviceNames = enumerator.getDeviceNames();
-
-            // First, try to find front facing camera
-            for (String deviceName : deviceNames) {
-                if (enumerator.isFrontFacing(deviceName)) {
-                    videoCapturer = enumerator.createCapturer(deviceName, null);
-                }
+            if (eglContext == null) {
+                eglContext = EglBase.create().getEglBaseContext();
             }
-            MediaConstraints constraints = new MediaConstraints();
-            VideoSource vsource = pcFactory.createVideoSource(videoCapturer.isScreencast());
-            SurfaceTextureHelper surfaceTextureHelper =
-                    SurfaceTextureHelper.create("CaptureThread", eglContext);
-            videoCapturer.initialize(surfaceTextureHelper, callback.getAppContext(), vsource.getCapturerObserver());
-            videoCapturer.startCapture(1280, 720, 30);
-            videoTrack = pcFactory.createVideoTrack(VIDEO_TRACK_ID, vsource);
+            if (pcFactory == null) {
+                PeerConnectionFactory.initialize(
+                        PeerConnectionFactory.InitializationOptions.builder(callback.getAppContext())
+                                .setFieldTrials(ComMediaConstraint.VIDEO_VP8_INTEL_HW_ENCODER_FIELDTRIAL)
+                                .setEnableInternalTracer(true)
+                                .createInitializationOptions());
+                final VideoEncoderFactory encoderFactory;
+                final VideoDecoderFactory decoderFactory;
+                encoderFactory = new DefaultVideoEncoderFactory(eglContext, true /* enableIntelVp8Encoder */, false);
+                decoderFactory = new DefaultVideoDecoderFactory(eglContext);
+
+                pcFactory = PeerConnectionFactory.builder()
+                        .setOptions(new PeerConnectionFactory.Options())
+                        .setVideoEncoderFactory(encoderFactory)
+                        .setVideoDecoderFactory(decoderFactory)
+                        .createPeerConnectionFactory();
+            }
+            // set constraint
+            comMediaConstraint = callback.getMediaConstraint();
+
+            audioSource = pcFactory.createAudioSource(new MediaConstraints());
+            audioTrack = pcFactory.createAudioTrack(ComMediaConstraint.AUDIO_TRACK_ID, audioSource);
+            audioTrack.setEnabled(true);
+
+            if (comMediaConstraint.isVideoEnabled()) {
+                Camera1Enumerator enumerator = new Camera1Enumerator(false);
+                final String[] deviceNames = enumerator.getDeviceNames();
+
+                for (String deviceName : deviceNames) {
+                    if (enumerator.isFrontFacing(deviceName)) {
+                        videoCapturer = enumerator.createCapturer(deviceName, null);
+                    }
+                }
+                videoSource = pcFactory.createVideoSource(videoCapturer.isScreencast());
+                SurfaceTextureHelper surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", eglContext);
+                videoCapturer.initialize(surfaceTextureHelper, callback.getAppContext(), videoSource.getCapturerObserver());
+                videoCapturer.startCapture(comMediaConstraint.getVideoWidth(), comMediaConstraint.getVideoHeigh(), comMediaConstraint.getVideoFps());
+                videoTrack = pcFactory.createVideoTrack(ComMediaConstraint.VIDEO_TRACK_ID, videoSource);
+                videoTrack.setEnabled(true);
+            }
 
             if (audioTrack != null || videoTrack != null) {
-                stream = pcFactory.createLocalMediaStream(LOCAL_MEDIA_ID);
-                if (audioTrack != null)
-                    stream.addTrack(audioTrack);
+                localStream = pcFactory.createLocalMediaStream(ComMediaConstraint.LOCAL_MEDIA_ID);
+                if (audioTrack != null) {
+                    localStream.addTrack(audioTrack);
+                }
                 if (videoTrack != null)
-                    stream.addTrack(videoTrack);
+                    localStream.addTrack(videoTrack);
             }
-            localStream = stream;
+            PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(callback.getIceServers());
+            pc = pcFactory.createPeerConnection(rtcConfig, pcObserver);
             if (localStream != null) {
                 Log.d("WebRTCConnection", "Has a stream...");
-                webRTCListener.onLocalStream(stream);
+                webRTCListener.onLocalStream(localStream);
+                pc.addStream(localStream);
             }
 
-            MediaConstraints pc_cons = new MediaConstraints();
-            pc_cons.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
-            if (true)
-                pc_cons.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
-            if (true)
-                pc_cons.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
-
-            PeerConnection.RTCConfiguration rtcConfig =
-                    new PeerConnection.RTCConfiguration(callback.getIceServers());
-            pc = pcFactory.createPeerConnection(rtcConfig, pcObserver);
-            if (localStream != null)
-                pc.addStream(localStream);
-
             Log.d("WebRTCConnection", "Create offer..");
-            pc_cons.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
-            pc_cons.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
-            pc_cons.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
-            pc.createOffer(new SDPObserver(callback), pc_cons);
+            MediaConstraints sdpMediaConstraints = new MediaConstraints();
+            sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
+            if (comMediaConstraint.isAudioEnabled())
+                sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
+            if (comMediaConstraint.isVideoEnabled())
+                sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
+            pc.createOffer(new SDPObserver(callback), sdpMediaConstraints);
         });
-    }
-
-    public void close(){
-        if (remoteStream != null) {
-            remoteStream.dispose();
-            remoteStream = null;
-        }
-        if (localStream != null) {
-            localStream.dispose();
-            localStream = null;
-        }
-        if (pc != null && pc.signalingState() != PeerConnection.SignalingState.CLOSED)
-            pc.close();
-        pc = null;
-        mySdp = null;
     }
 
     public void handleRemoteSDP(HandleWebRTCCallback callback) {
@@ -167,7 +158,52 @@ public class WebRTCConnection {
                 }
             }
         });
+    }
 
+    public void switchCamera() {
+        if (videoCapturer instanceof CameraVideoCapturer) {
+            if (!comMediaConstraint.isVideoEnabled()) {
+                Log.e("WebRTCConnection", "Failed to switch camera.");
+                return;
+            }
+            Log.d("WebRTCConnection", "Switch camera");
+            CameraVideoCapturer cameraVideoCapturer = (CameraVideoCapturer) videoCapturer;
+            cameraVideoCapturer.switchCamera(null);
+        } else {
+            Log.d("WebRTCConnection", "Will not switch camera, video caputurer is not a camera");
+        }
+    }
+
+    public void setVideoEnabled(boolean enabled){
+        if (videoTrack != null)
+            videoTrack.setEnabled(enabled);
+    }
+
+    public void close() {
+        if (remoteStream != null) {
+            remoteStream.dispose();
+            remoteStream = null;
+        }
+        if (localStream != null) {
+            localStream.dispose();
+            localStream = null;
+        }
+        if (videoCapturer != null) {
+            try {
+                videoCapturer.stopCapture();
+                videoCapturer = null;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        if (pc != null && pc.signalingState() != PeerConnection.SignalingState.CLOSED)
+            pc.close();
+        pc = null;
+        localSdp = null;
+    }
+
+    public EglBase.Context getEglContext() {
+        return eglContext;
     }
 
 
@@ -255,8 +291,8 @@ public class WebRTCConnection {
             Log.d("SDPObserver", "onCreateSuccess");
             ComClient.executor.execute(() -> {
                 if (pc != null) {
-                    if (mySdp == null) {
-                        mySdp = sdp;
+                    if (localSdp == null) {
+                        localSdp = sdp;
                         pc.setLocalDescription(new SDPObserver(callback), sdp);
                     }
                 }
@@ -270,14 +306,13 @@ public class WebRTCConnection {
                 if (pc.getRemoteDescription() == null) {
                     JSONObject jsep = new JSONObject();
                     try {
-                        jsep.put("sdp", mySdp.description);
-                        jsep.put("type", mySdp.type.canonicalForm());
+                        jsep.put("sdp", localSdp.description);
+                        jsep.put("type", localSdp.type.canonicalForm());
                         callback.onSuccess(jsep);
                     } catch (JSONException e) {
                         Log.e("SDPObserver", "onSetSuccess: " + e.getMessage());
                     }
-                }
-                else {
+                } else {
                     callback.onSuccess(null);
                 }
             });

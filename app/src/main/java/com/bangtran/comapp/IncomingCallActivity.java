@@ -185,9 +185,6 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
                     }
                 });
             }
-
-
-
            
             @Override
             public void onMediaStateChange(ComCall call, final ComCall.MediaState mediaState) {
@@ -236,7 +233,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
             }
 
         });
-
+        mCall.ringing();
 //        mCall.answer(this);
     }
 
@@ -295,7 +292,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
                 break;
             case R.id.btn_switch:
                 if (mCall != null) {
-//                    mCall.switchCamera(null);
+                    mCall.switchCamera();
                 }
                 break;
         }
@@ -318,7 +315,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
                 }
 //                mCall.sendCallInfo(jsonObject);
             }
-//            mCall.enableVideo(isVideo);
+            mCall.enableVideo(isVideo);
         }
     }
 
