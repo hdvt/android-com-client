@@ -28,7 +28,7 @@ public class ComClient implements SocketConnectionListener {
 
     public ComClient(Context appContext) {
         this.appContext = appContext;
-        this.serverURL = "ws://192.168.42.192:8080";
+        this.serverURL = "ws://192.168.31.112:8080";
         socketConnection = new SocketConnection(serverURL, this);
         sessionId = null;
         userId = null;
@@ -101,7 +101,7 @@ public class ComClient implements SocketConnectionListener {
                 JSONObject data = event.getJSONObject("data");
                 switch (eventName) {
                     case "call_start": {
-                        ComCall newCall = new ComCall(this, data.getString("caller_user_id"), data.getString("callee_user_id"));
+                        ComCall newCall = new ComCall(this, data.getString("caller_id"), data.getString("callee_id"));
                         newCall.setCallID(data.getString("call_id"));
                         newCall.setIncomingCall(true);
                         connectionListener.onIncommingCall(newCall);

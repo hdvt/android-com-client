@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String to;
     public static Map<String, ComCall> callsMap = new HashMap<>();
     private String accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjozMjYsImxvZ2luX25hbWUiOiIwMzg3NTEwMTg3Iiwicm9sZSI6IlBBVElFTlQiLCJzdGF0ZSI6IkFDVElWRSIsImlhdCI6MTYxNTg4MjIyNywiZXhwIjoxNzAyMjgyMjI3fQ.z9MWafPQ36y4g2wvRHC5mBHtlhdyao61qj2j-DWP9Ls"; // replace your access token here.
-    private String accessToken2 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwidXNlcl9pZCI6InkiLCJpYXQiOjE1MTYyMzkwMjJ9.5KERMgfaZgU_jdd3_Q2Gy6sMi1DMdJzjMcvyy52Dgr4"; // replace your access token here.
+    private String accessToken2 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoxOTAsImxvZ2luX25hbWUiOiIwMzk3NzA2MjI4Iiwicm9sZSI6Ik5VUlNFIiwic3RhdGUiOiJBQ1RJVkUiLCJpYXQiOjE2MTU4ODM0ODQsImV4cCI6MTcwMjI4MzQ4NH0.Sx6uQvk5Fyh24nmpjTj-1DpoeiTgbtJq6FYFxr4fczE"; // replace your access token here.
 
     private EditText etTo;
     private TextView tvUserId;
@@ -133,7 +133,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
         });
-        client.connect(accessToken);
+        client.connect(accessToken2);
     }
 
     @Override

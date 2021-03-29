@@ -54,7 +54,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_incoming_call);
 
-        int callId = getIntent().getIntExtra("call_id", 0);
+        String callId = getIntent().getStringExtra("call_id");
         mCall = MainActivity.callsMap.get(callId);
 
         mLocalViewContainer = (FrameLayout) findViewById(R.id.v_local);

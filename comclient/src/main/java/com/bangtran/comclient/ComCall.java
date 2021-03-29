@@ -444,38 +444,38 @@ public class ComCall implements WebRTCListener {
 
     // private functions
     private void sendIceCandidate(IceCandidate candidate){
-        JSONObject packet = new JSONObject();
-        try {
-            packet.put("event", "call_candidate");
-            JSONObject body = new JSONObject();
-            body.put("call_id", getCallId());
-            packet.put("body", body);
-            JSONObject cand = new JSONObject();
-            if (candidate == null) {
-                cand.put("completed", true);
-            } else {
-                cand.put("candidate", candidate.sdp);
-                cand.put("sdpMid", candidate.sdpMid);
-                cand.put("sdpMLineIndex", candidate.sdpMLineIndex);
-            }
-            body.put("candidate", cand);
-            Log.d("ComCall", "onIceCandidate" + packet.toString());
-            client.sendMessage(packet, new RequestCallback() {
-                @Override
-                public void onSuccess(JSONObject data) {
-                    Log.i("ComCall", "sendCandidate success" + data.toString());
-                }
-
-                @Override
-                public void onError(ComError error) {
-                    Log.e("ComCall", "sendCandidate error" + error.toString());
-                }
-            });
-
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+//        JSONObject packet = new JSONObject();
+//        try {
+//            packet.put("event", "call_candidate");
+//            JSONObject body = new JSONObject();
+//            body.put("call_id", getCallId());
+//            packet.put("body", body);
+//            JSONObject cand = new JSONObject();
+//            if (candidate == null) {
+//                cand.put("completed", true);
+//            } else {
+//                cand.put("candidate", candidate.sdp);
+//                cand.put("sdpMid", candidate.sdpMid);
+//                cand.put("sdpMLineIndex", candidate.sdpMLineIndex);
+//            }
+//            body.put("candidate", cand);
+//            Log.d("ComCall", "onIceCandidate" + packet.toString());
+//            client.sendMessage(packet, new RequestCallback() {
+//                @Override
+//                public void onSuccess(JSONObject data) {
+//                    Log.i("ComCall", "sendCandidate success" + data.toString());
+//                }
+//
+//                @Override
+//                public void onError(ComError error) {
+//                    Log.e("ComCall", "sendCandidate error" + error.toString());
+//                }
+//            });
+//
+//
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
     }
 
 
