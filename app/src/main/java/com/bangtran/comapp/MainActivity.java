@@ -6,8 +6,12 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleObserver;
+import androidx.lifecycle.OnLifecycleEvent;
 
 import android.util.Log;
 import android.view.View;
@@ -19,9 +23,15 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import com.bangtran.comclient.ComCall;
+import com.bangtran.comclient.ComCallback;
 import com.bangtran.comclient.ComClient;
 import com.bangtran.comclient.ComError;
 import com.bangtran.comclient.utils.Utils;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.iid.InstanceIdResult;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import org.json.JSONObject;
 
@@ -29,13 +39,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, LifecycleObserver {
 
     public static ComClient client;
     private String to;
     public static Map<String, ComCall> callsMap = new HashMap<>();
-    private String accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjozMjYsImxvZ2luX25hbWUiOiIwMzg3NTEwMTg3Iiwicm9sZSI6IlBBVElFTlQiLCJzdGF0ZSI6IkFDVElWRSIsImlhdCI6MTYxNTg4MjIyNywiZXhwIjoxNzAyMjgyMjI3fQ.z9MWafPQ36y4g2wvRHC5mBHtlhdyao61qj2j-DWP9Ls"; // replace your access token here.
-    private String accessToken2 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoxOTAsImxvZ2luX25hbWUiOiIwMzk3NzA2MjI4Iiwicm9sZSI6Ik5VUlNFIiwic3RhdGUiOiJBQ1RJVkUiLCJpYXQiOjE2MTU4ODM0ODQsImV4cCI6MTcwMjI4MzQ4NH0.Sx6uQvk5Fyh24nmpjTj-1DpoeiTgbtJq6FYFxr4fczE"; // replace your access token here.
+    private String accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDM3NTg3MzYsInVzZXJfaWQiOiJZIiwiaWF0IjoxNjE3MzU4NzM2fQ.on9T4sRF5jHN4U3I0-YH_CPCnAyO0mHJr3Uz5qfBYZo"; // replace your access token here.
+    private String accessToken2 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDM3NTg3MzcsInVzZXJfaWQiOiJCb24iLCJpYXQiOjE2MTczNTg3Mzd9.5zXvOOAlVbWeA3pQ0wuAs6cCWvMb9pzCZM02oVff2hw"; // replace your access token here.
 
     private EditText etTo;
     private TextView tvUserId;
@@ -44,9 +54,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private SharedPreferences sharedPreferences;
     private SharedPreferences.Editor editor;
 
-    private final String PREF_NAME = "com.stringee.onetoonecallsample";
+    private final String PREF_NAME = "com.bangtran.comapp";
     private final String IS_TOKEN_REGISTERED = "is_token_registered";
     private final String TOKEN = "token";
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+    public void onAppBackgrounded() {
+        Log.d("AppLifecycle", "App in background");
+        Common.isAppInBackground = true;
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_START)
+    public void onAppForegrounded() {
+        Log.d("AppLifecycle", "App in foreground");
+        Common.isAppInBackground = false;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +101,40 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         client.setConnectionListener(new ComClient.ComConnectionListener() {
             @Override
             public void onConnectionConnected(final ComClient client) {
+                boolean isTokenRegistered = sharedPreferences.getBoolean(IS_TOKEN_REGISTERED, false);
+                if (!isTokenRegistered) {
+                    FirebaseMessaging.getInstance().getToken()
+                            .addOnCompleteListener(new OnCompleteListener<String>() {
+                                @Override
+                                public void onComplete(@NonNull Task<String> task) {
+                                    if (!task.isSuccessful()) {
+                                        Log.w("MainActivity", "Fetching FCM registration token failed", task.getException());
+                                        return;
+                                    }
 
+                                    // Get new FCM registration token
+                                    String token = task.getResult();
+
+                                    client.registerPushToken(token, new ComCallback() {
+                                        @Override
+                                        public void onSuccess() {
+                                            Log.d("MainActivity", "Register push token successfully.");
+                                            editor.putBoolean(IS_TOKEN_REGISTERED, true);
+                                            editor.putString(TOKEN, token);
+                                            editor.commit();
+                                        }
+
+                                        @Override
+                                        public void onError(ComError error) {
+                                            Log.d("MainActivity", "Register push token unsuccessfully: " + error.getMessage());
+                                        }
+                                    });
+                                }
+                            });
+
+
+
+                }
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -133,7 +188,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
         });
-        client.connect(accessToken);
+        client.connect(accessToken2);
     }
 
     @Override

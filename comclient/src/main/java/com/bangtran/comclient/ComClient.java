@@ -28,7 +28,7 @@ public class ComClient implements SocketConnectionListener {
 
     public ComClient(Context appContext) {
         this.appContext = appContext;
-        this.serverURL = "ws://172.16.200.239:8080";
+        this.serverURL = "ws://203.113.138.21:4417";
         socketConnection = new SocketConnection(serverURL, this);
         sessionId = null;
         userId = null;
@@ -182,6 +182,31 @@ public class ComClient implements SocketConnectionListener {
                 return comCall;
         }
         return null;
+    }
+
+    public void registerPushToken(String token, ComCallback callback){
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "register_push_token");
+            JSONObject body = new JSONObject();
+            body.put("token", token);;
+            packet.put("body", body);
+            this.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i("ComClient", "registerPushToken success" + data.toString());
+                    callback.onSuccess();
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e("ComClient", "Make call error" + error.toString());
+                    callback.onError(new ComError(error.getCode(), error.getMessage()));
+                }
+            });
+        } catch (JSONException e) {
+            Log.e("ComClient", e.getMessage());
+        }
     }
 
     public interface ComConnectionListener {

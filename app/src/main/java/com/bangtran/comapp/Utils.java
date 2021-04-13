@@ -1,6 +1,8 @@
-package com.bangtran.comclient.utils;
+package com.bangtran.comapp;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -13,5 +15,15 @@ public class Utils {
         if (v != null)
             v.setGravity(Gravity.CENTER);
         toast.show();
+    }
+
+    public static void postDelay(Runnable runnable, long delayMillis) {
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.postDelayed(runnable, delayMillis);
+    }
+
+    public static void runOnUithread(Runnable runnable) {
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(runnable);
     }
 }
