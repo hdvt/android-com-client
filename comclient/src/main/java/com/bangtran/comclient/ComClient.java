@@ -44,29 +44,55 @@ public class ComClient implements SocketConnectionListener {
             Log.d("ComClient", "socket connected");
             JSONObject packet = new JSONObject();
             try {
-                packet.put("event", "authen");
-                JSONObject body = new JSONObject();
-                body.put("token", accessToken);
-                packet.put("body", body);
-                this.sendMessage(packet, new RequestCallback() {
-                    @Override
-                    public void onSuccess(JSONObject data) {
-                        Log.i("ComClient", "Authen success" + data.toString());
-                        try {
-                            userId = data.getString("user_id");
-                            sessionId = data.getString("session_id");
-                            connected = true;
-                        } catch (JSONException e) {
-                            Log.e("ComClient", e.toString());
+                if (this.sessionId == null) {
+                    packet.put("event", "authen");
+                    JSONObject body = new JSONObject();
+                    body.put("token", accessToken);
+                    packet.put("body", body);
+                    this.sendMessage(packet, new RequestCallback() {
+                        @Override
+                        public void onSuccess(JSONObject data) {
+                            Log.i("ComClient", "Authen success" + data.toString());
+                            try {
+                                userId = data.getString("user_id");
+                                sessionId = data.getString("session_id");
+                                connected = true;
+                            } catch (JSONException e) {
+                                Log.e("ComClient", e.toString());
+                            }
+                            connectionListener.onConnectionConnected(ComClient.this);
                         }
-                        connectionListener.onConnectionConnected(ComClient.this);
-                    }
 
-                    @Override
-                    public void onError(ComError error) {
-                        Log.e("ComClient", "Authen error" + error.toString());
-                    }
-                });
+                        @Override
+                        public void onError(ComError error) {
+                            Log.e("ComClient", "Authen error" + error.toString());
+                            connectionListener.onConnectionError(ComClient.this, error);
+                        }
+                    });
+                }
+                else {
+                    packet.put("event", "claim");
+                    JSONObject body = new JSONObject();
+                    body.put("session_id", this.sessionId);
+                    packet.put("body", body);
+                    this.sendMessage(packet, new RequestCallback() {
+                        @Override
+                        public void onSuccess(JSONObject data) {
+                            Log.i("ComClient", "Claimed the session " + ComClient.this.sessionId + " sucessfully");
+                            connected = true;
+                            connectionListener.onConnectionConnected(ComClient.this);
+                        }
+
+                        @Override
+                        public void onError(ComError error) {
+                            Log.e("ComClient", "Claimed the session " + ComClient.this.sessionId + " failed: " + error.getMessage());
+                            Log.e("ComClient", "Get new session");
+                            ComClient.this.sessionId = null;
+                            ComClient.this.userId = null;
+                            ComClient.this.connect(ComClient.this.accessToken);
+                        }
+                    });
+                }
             } catch (JSONException e) {
                 Log.e("ComClient", e.getMessage());
             }

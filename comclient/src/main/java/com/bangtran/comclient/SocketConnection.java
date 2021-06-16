@@ -29,11 +29,12 @@ public class SocketConnection{
     public SocketConnection(String url, SocketConnectionListener listener) {
         this.connectionListener = listener;
         this.serverURL = url;
-        client = new OkHttpClient.Builder().connectTimeout(2000, TimeUnit.MILLISECONDS).build();
+        client = new OkHttpClient.Builder().connectTimeout(2000, TimeUnit.MILLISECONDS).pingInterval(1000, TimeUnit.MILLISECONDS).build();
     }
     public void connect(){
         Log.d("SocketConnection" , "Connecting...");
         Request request = new Request.Builder().url(serverURL).build();
+
         ws = client.newWebSocket(request, new WebSocketListener() {
             @Override
             public void onOpen(WebSocket webSocket, Response response) {
@@ -42,24 +43,23 @@ public class SocketConnection{
                 connected = true;
                 connectionListener.onConnect();
             }
-
             @Override
             public void onMessage(WebSocket webSocket, String text) {
 //                super.onMessage(webSocket, text);
                 try {
-                    connectionListener.onMessage(new JSONObject(text));
+                    JSONObject data = new JSONObject(text);
+                    if (data != null)
+                        connectionListener.onMessage(data);
                 } catch (JSONException e) {
                     Log.d("Error" , e.toString());
                 }
             }
-
             @Override
             public void onClosing(WebSocket webSocket, int code, String reason) {
 //                super.onClosing(webSocket, code, reason);
                 Log.d("SocketConnection", "onClosing");
 
             }
-
             @Override
             public void onClosed(WebSocket webSocket, int code, String reason) {
 //                super.onClosed(webSocket, code, reason);
@@ -69,7 +69,6 @@ public class SocketConnection{
                     connectionListener.onDisconnect(false);
                 }
             }
-
             @Override
             public void onFailure(WebSocket webSocket, Throwable t, @Nullable Response response) {
 //                super.onFailure(webSocket, t, response);

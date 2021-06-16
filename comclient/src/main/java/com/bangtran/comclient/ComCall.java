@@ -264,7 +264,7 @@ public class ComCall implements WebRTCListener {
                         @Override
                         public void onError(ComError error) {
                             Log.e("ComClient", "Make call error" + error.toString());
-                            ComCall.this.callListener.onError(ComCall.this, error.getCode(), error.getMessage());
+                            ComCall.this.callListener.onError(ComCall.this, new ComError(error.getCode(), error.getMessage()));
                         }
                     });
                 } catch (JSONException e) {
@@ -496,12 +496,10 @@ public class ComCall implements WebRTCListener {
         ANSWERED,
         ENDED,
     }
-
     public enum MediaState {
         CONNECTED,
         DISCONNECTED
     }
-
     public interface ComCallListener {
         void onSignalingStateChange(ComCall call, ComCall.SignalingState state);
 
@@ -511,7 +509,7 @@ public class ComCall implements WebRTCListener {
 
         void onRemoteStream(ComCall call);
 
-        void onError(ComCall call, int code, String description);
+        void onError(ComCall call, ComError error);
     }
 
 }

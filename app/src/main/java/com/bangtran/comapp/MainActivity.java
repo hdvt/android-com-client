@@ -158,6 +158,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 });
             }
 
+
             @Override
             public void onIncommingCall(ComCall call) {
                 runOnUiThread(new Runnable() {
@@ -176,19 +177,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             }
 
-//            @Override
-//            public void onConnectionDisconnected(ComClient client) {
-//
-//            }
-//
-//            @Override
-//            public void onConnectionError(ComClient client, JSONObject error) {
-//
-//            }
-
 
         });
-        client.connect(accessToken2);
+        client.connect(accessToken);
     }
 
     @Override

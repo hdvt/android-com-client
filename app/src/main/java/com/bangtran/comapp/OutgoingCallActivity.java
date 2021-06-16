@@ -16,6 +16,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.bangtran.comclient.ComCall;
+import com.bangtran.comclient.ComError;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -225,7 +226,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
             }
 
             @Override
-            public void onError(ComCall call, int code, String description) {
+            public void onError(ComCall call, ComError error) {
 
             }
         });
