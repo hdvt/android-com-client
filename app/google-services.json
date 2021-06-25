@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "214311241910",
+    "firebase_url": "https://com-server-437e8-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "com-server-437e8",
+    "storage_bucket": "com-server-437e8.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:214311241910:android:00a9a2e58b6d114cc0fe17",
+        "android_client_info": {
+          "package_name": "com.bangtran.comapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "214311241910-iq5afjhr7okorql4j38fka52vun4qml9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkwZvgASh3wp34yUITSLJEAl7QtEU4hJU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "214311241910-iq5afjhr7okorql4j38fka52vun4qml9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

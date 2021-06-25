@@ -28,7 +28,7 @@ public class ComClient implements SocketConnectionListener {
 
     public ComClient(Context appContext) {
         this.appContext = appContext;
-        this.serverURL = "ws://203.113.138.21:4417";
+        this.serverURL = "ws://192.168.31.113:9090";
         socketConnection = new SocketConnection(serverURL, this);
         sessionId = null;
         userId = null;
