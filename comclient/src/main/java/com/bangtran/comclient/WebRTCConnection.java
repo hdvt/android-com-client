@@ -28,6 +28,8 @@ import org.webrtc.VideoEncoderFactory;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
+import org.apache.commons.text.StringEscapeUtils;
+
 public class WebRTCConnection {
     private static PeerConnectionFactory pcFactory;
     private static EglBase.Context eglContext;
@@ -117,11 +119,13 @@ public class WebRTCConnection {
             Log.d("WebRTCConnection", "Create offer..");
             MediaConstraints sdpMediaConstraints = new MediaConstraints();
             sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
+            sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("googCpuOveruseDetection", "false"));
             if (comMediaConstraint.isAudioEnabled())
                 sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
             if (comMediaConstraint.isVideoEnabled())
                 sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
             pc.createOffer(new SDPObserver(callback), sdpMediaConstraints);
+
         });
     }
 
@@ -177,7 +181,15 @@ public class WebRTCConnection {
     public void setVideoEnabled(boolean enabled){
         if (videoTrack != null)
             videoTrack.setEnabled(enabled);
+
+
     }
+
+    public void setAudioEnable(boolean enabled){
+        if (audioTrack != null)
+            audioTrack.setEnabled(enabled);
+    }
+
 
     public void close() {
         if (remoteStream != null) {
@@ -289,11 +301,15 @@ public class WebRTCConnection {
         @Override
         public void onCreateSuccess(final SessionDescription sdp) {
             Log.d("SDPObserver", "onCreateSuccess");
+            String newDes = sdp.description;
+            newDes = newDes.replaceFirst("a=extmap:13 urn:3gpp:video-orientation\\r\\n", "");
+            final SessionDescription newSDP = new SessionDescription(sdp.type, newDes);
+            Log.d("SDPObserver", newSDP.description);
             ComClient.executor.execute(() -> {
                 if (pc != null) {
                     if (localSdp == null) {
-                        localSdp = sdp;
-                        pc.setLocalDescription(new SDPObserver(callback), sdp);
+                        localSdp = newSDP;
+                        pc.setLocalDescription(new SDPObserver(callback), newSDP);
                     }
                 }
             });

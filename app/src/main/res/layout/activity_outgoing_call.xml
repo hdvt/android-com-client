@@ -98,7 +98,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:background="@drawable/end_call_selector"
+            android:background="@drawable/btn_end_call_selector"
             android:scaleType="fitCenter" />
     </LinearLayout>
 

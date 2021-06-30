@@ -9,6 +9,7 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
@@ -229,6 +230,28 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
             }
 
             @Override
+            public void onCallInfo(ComCall call, JSONObject info) {
+                Log.d("onCallInfo", info.toString());
+            }
+
+            @Override
+            public void onHandledOnAnotherDevice(ComCall call, ComCall.SignalingState signalingState, String description) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (signalingState == ComCall.SignalingState.ANSWERED || signalingState == ComCall.SignalingState.BUSY) {
+                                Utils.reportMessage(IncomingCallActivity.this, "This call is handled on another device.");
+                                tvState.setText("Ended");
+                                if (mCall != null) {
+                                    mCall.hangup();
+                                }
+                                finish();
+                            }
+                        }
+                    });
+            }
+
+            @Override
             public void onError(ComCall call, ComError error) {
 
             }
@@ -249,7 +272,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
                     btnMute.setImageResource(R.drawable.ic_mic);
                 }
                 if (mCall != null) {
-//                    mCall.mute(isMute);
+                    mCall.mute(isMute);
                 }
                 break;
             case R.id.btn_speaker:
@@ -260,7 +283,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
                     btnSpeaker.setImageResource(R.drawable.ic_speaker_off);
                 }
                 if (mCall != null) {
-//                    mCall.setSpeakerphoneOn(isSpeaker);
+                    mCall.setSpeakerphoneOn(isSpeaker);
                 }
                 break;
             case R.id.btn_answer:
@@ -325,4 +348,5 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
         btnVideo.setImageResource(R.drawable.ic_video);
 //        mCall.enableVideo(true);
     }
+
 }

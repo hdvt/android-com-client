@@ -177,6 +177,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
                             if (mMediaState == ComCall.MediaState.CONNECTED) {
                                 tvState.setText("Started");
                             }
+
                         } else if (signalingState == ComCall.SignalingState.BUSY) {
                             tvState.setText("Busy");
                             if (mComCall != null)
@@ -226,6 +227,16 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
             }
 
             @Override
+            public void onCallInfo(ComCall call, JSONObject info) {
+                Log.d("onCallInfo", info.toString());
+            }
+
+            @Override
+            public void onHandledOnAnotherDevice(ComCall call, ComCall.SignalingState signalingState, String description) {
+
+            }
+
+            @Override
             public void onError(ComCall call, ComError error) {
 
             }
@@ -244,7 +255,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
                     btnMute.setImageResource(R.drawable.ic_mic);
                 }
                 if (mComCall != null) {
-//                    mComCall.mute(isMute);
+                    mComCall.mute(isMute);
                 }
                 break;
             case R.id.btn_speaker:
@@ -255,12 +266,20 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
                     btnSpeaker.setImageResource(R.drawable.ic_speaker_off);
                 }
                 if (mComCall != null) {
-//                    mComCall.setSpeakerphoneOn(isSpeaker);
+                    mComCall.setSpeakerphoneOn(isSpeaker);
                 }
                 break;
             case R.id.btn_end:
-                if (mComCall != null)
+                if (mComCall != null) {
+                    JSONObject info = new JSONObject();
+                    try {
+                        info.put("data", "test");
+                        mComCall.sendCallInfo(info);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                     mComCall.hangup();
+                }
                 finish();
                 break;
             case R.id.btn_video:

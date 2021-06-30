@@ -120,15 +120,22 @@ public class ComClient implements SocketConnectionListener {
                 String eventName = event.getString("name");
                 JSONObject data = event.getJSONObject("data");
                 switch (eventName) {
+                    case "custom_message": {
+                        connectionListener.onCustomMessage(data.getString("from"), new JSONObject(data.getString("message")));
+                        break;
+                    }
                     case "call_start": {
                         ComCall newCall = new ComCall(this, data.getString("caller_id"), data.getString("callee_id"));
                         newCall.setCallID(data.getString("call_id"));
                         newCall.setIncomingCall(true);
+                        newCall.setVideoCall(data.getBoolean("video_call"));
                         connectionListener.onIncommingCall(newCall);
                         break;
                     }
                     case "call_sdp":
                     case "call_state":
+                    case "call_message":
+                    case "call_other_device":
                     case "call_stop": {
                         ComCall call = getCall(data.getString("call_id"));
                         if (call != null) {
@@ -235,6 +242,34 @@ public class ComClient implements SocketConnectionListener {
         }
     }
 
+    public void sendCustomMessage(String to, JSONObject msg, ComCallback callback){
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "custom_message");
+            JSONObject body = new JSONObject();
+            body.put("to", to);
+            body.put("message", msg.toString());;
+            packet.put("body", body);
+            this.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i("ComClient", "sendCustomMessage success" + data.toString());
+                    callback.onSuccess();
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e("ComClient", "sendCustomMessage error" + error.toString());
+                    callback.onError(new ComError(error.getCode(), error.getMessage()));
+                }
+            });
+        } catch (JSONException e) {
+            Log.e("ComClient", e.getMessage());
+        }
+    }
+
+
+
     public interface ComConnectionListener {
         void onConnectionConnected(final ComClient client);
 
@@ -243,6 +278,8 @@ public class ComClient implements SocketConnectionListener {
         void onIncommingCall(ComCall call);
 
         void onConnectionError(final ComClient client, ComError error);
+
+        void onCustomMessage(String from, JSONObject msg);
     }
 
 }

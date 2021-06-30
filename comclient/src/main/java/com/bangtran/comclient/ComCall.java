@@ -3,6 +3,7 @@ package com.bangtran.comclient;
 
 import android.content.Context;
 import android.graphics.Camera;
+import android.media.AudioManager;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -34,6 +35,8 @@ public class ComCall implements WebRTCListener {
     private Context appContext;
     private Vector<IceCandidate> candidates;
 
+    private AudioManager audioManager;
+
 
     public ComCall(Context appContext, ComClient client, String from, String to) {
         this.callerID = from;
@@ -47,6 +50,7 @@ public class ComCall implements WebRTCListener {
         this.client = client;
         this.candidates = new Vector<IceCandidate>();
         this.client.addNewCall(this);
+        setSpeakerphoneOn(true);
     }
 
     public ComCall(ComClient client, String from, String to) {
@@ -281,6 +285,7 @@ public class ComCall implements WebRTCListener {
 
     public void answer(Context context) {
         appContext = context;
+        setSpeakerphoneOn(true);
         webRTCConnection.initConnection(new HandleWebRTCCallback() {
             @Override
             public ComMediaConstraint getMediaConstraint() {
@@ -423,6 +428,44 @@ public class ComCall implements WebRTCListener {
         this.webRTCConnection.setVideoEnabled(enabled);
     }
 
+    public void mute(boolean mute) {
+        this.webRTCConnection.setAudioEnable(mute);
+    }
+
+    public void setSpeakerphoneOn(boolean isSpeakerOn) {
+        if (audioManager == null && appContext != null) {
+            audioManager = (AudioManager) appContext.getSystemService(Context.AUDIO_SERVICE);
+        }
+        if (audioManager != null)
+            audioManager.setSpeakerphoneOn(isSpeakerOn);
+    }
+
+    public void sendCallInfo(JSONObject info) {
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "call_message");
+            JSONObject body = new JSONObject();
+            body.put("call_id", getCallId());
+            body.put("message", info.toString());
+            packet.put("body", body);
+            client.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i("ComCall", "sendCandidate success" + data.toString());
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e("ComCall", "sendCandidate error" + error.toString());
+                }
+            });
+
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void handleEvent(String event, JSONObject data){
         Log.d("handleEvent", event + " - " + data.toString());
         switch (event){
@@ -448,6 +491,25 @@ public class ComCall implements WebRTCListener {
                 this.webRTCConnection.close();
                 this.client.removeCall(this);
                 this.callListener.onSignalingStateChange(this, SignalingState.ENDED);
+                break;
+            }
+            case "call_message": {
+                try {
+                    JSONObject info = new JSONObject(data.getString("message"));
+                    if (info != null){
+                        this.callListener.onCallInfo(this, info);
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+            case "call_other_device": {
+                try {
+                    SignalingState state = SignalingState.values()[data.getInt("call_state")- 1];
+                    this.callListener.onHandledOnAnotherDevice(this, state, data.getString("description"));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -508,6 +570,10 @@ public class ComCall implements WebRTCListener {
         void onLocalStream(ComCall call);
 
         void onRemoteStream(ComCall call);
+
+        void onCallInfo(ComCall call, JSONObject info);
+
+        void onHandledOnAnotherDevice(ComCall call, final ComCall.SignalingState signalingState, String description);
 
         void onError(ComCall call, ComError error);
     }

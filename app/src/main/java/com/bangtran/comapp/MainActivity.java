@@ -33,6 +33,7 @@ import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.InstanceIdResult;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.HashMap;
@@ -44,8 +45,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static ComClient client;
     private String to;
     public static Map<String, ComCall> callsMap = new HashMap<>();
-    private String accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDM3NTg3MzYsInVzZXJfaWQiOiJZIiwiaWF0IjoxNjE3MzU4NzM2fQ.on9T4sRF5jHN4U3I0-YH_CPCnAyO0mHJr3Uz5qfBYZo"; // replace your access token here.
-    private String accessToken2 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDM3NTg3MzcsInVzZXJfaWQiOiJCb24iLCJpYXQiOjE2MTczNTg3Mzd9.5zXvOOAlVbWeA3pQ0wuAs6cCWvMb9pzCZM02oVff2hw"; // replace your access token here.
+    private String accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDM3NTg3MzYsInVzZXJfaWQiOiIxOTMiLCJpYXQiOjE2MTczNTg3MzZ9.17yHEnH9KqjUQYCigWfjfyYFO9fVPm1BMgR_PMRPb8k"; // replace your access token here.
+    private String accessToken2 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDM3NTg3MzYsInVzZXJfaWQiOiIxOTkiLCJpYXQiOjE2MTczNTg3MzZ9.kRih8J4bI9PQeNPOeb9XXUr767AWu8msJ1kVrzBscGM"; // replace your access token here.
 
     private EditText etTo;
     private TextView tvUserId;
@@ -161,6 +162,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             @Override
             public void onIncommingCall(ComCall call) {
+                JSONObject info = new JSONObject();
+                try {
+                    info.put("data", "test");
+                    client.sendCustomMessage("193", info, new ComCallback() {
+                        @Override
+                        public void onSuccess() {
+                            Log.d("MainActivity", "sendCustomMessage ok");
+                        }
+                        @Override
+                        public void onError(ComError error) {
+                            Log.d("MainActivity", "sendCustomMessage error " + error.getMessage());
+
+                        }
+                    });
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -177,9 +195,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             }
 
-
+            @Override
+            public void onCustomMessage(String from, JSONObject msg) {
+                Log.d("onCustomMessage", "from " + from + ": " + msg.toString());
+            }
         });
-        client.connect(accessToken);
+        client.connect(accessToken2);
     }
 
     @Override
