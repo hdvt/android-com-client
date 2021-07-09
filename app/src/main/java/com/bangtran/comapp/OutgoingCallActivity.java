@@ -157,7 +157,7 @@ public class OutgoingCallActivity extends AppCompatActivity implements View.OnCl
 
     private void makeCall() {
         mComCall = new ComCall(this, MainActivity.client, from, to);
-        mComCall.setCustomData("{\"call_service_id\":1,\"call_type\":\"AUDIO\"}");
+        mComCall.setCustom("{\"call_service_id\":1,\"call_type\":\"AUDIO\"}");
         mComCall.setVideoCall(isVideoCall);
 
         mComCall.setCallListener(new ComCall.ComCallListener() {

@@ -27,7 +27,6 @@ import org.webrtc.VideoDecoderFactory;
 import org.webrtc.VideoEncoderFactory;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
-
 import org.apache.commons.text.StringEscapeUtils;
 
 public class WebRTCConnection {
@@ -304,7 +303,6 @@ public class WebRTCConnection {
             String newDes = sdp.description;
             newDes = newDes.replaceFirst("a=extmap:13 urn:3gpp:video-orientation\\r\\n", "");
             final SessionDescription newSDP = new SessionDescription(sdp.type, newDes);
-            Log.d("SDPObserver", newSDP.description);
             ComClient.executor.execute(() -> {
                 if (pc != null) {
                     if (localSdp == null) {

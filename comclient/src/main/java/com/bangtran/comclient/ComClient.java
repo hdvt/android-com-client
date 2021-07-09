@@ -13,35 +13,37 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ComClient implements SocketConnectionListener {
+    private static final String TAG = ComClient.class.getSimpleName();
     public static final ExecutorService executor = Executors.newSingleThreadExecutor();
-    int currentRequestId;
-    ComConnectionListener connectionListener;
-    boolean connected;
+
     private Context appContext;
-    private String serverURL;
+    ComConnectionListener connectionListener;
     private SocketConnection socketConnection;
+
+    int currentRequestId;
+    boolean connected;
+    private String serverURL;
     private String accessToken;
     private String sessionId;
     private String userId;
+
     private ConcurrentHashMap<Integer, RequestCallback> requestCallbacks;
     private Vector<ComCall> comCalls;
 
     public ComClient(Context appContext) {
         this.appContext = appContext;
-        this.serverURL = "ws://192.168.31.113:9090";
+        this.serverURL = "ws://203.113.138.21:4417";
         socketConnection = new SocketConnection(serverURL, this);
+        connected = false;
+        comCalls = new Vector<ComCall>();
         sessionId = null;
         userId = null;
         requestCallbacks = new ConcurrentHashMap<Integer, RequestCallback>();
-        comCalls = new Vector<ComCall>();
         currentRequestId = 0;
-        connected = false;
     }
-
     @Override
     public void onConnect() {
         executor.execute(() -> {
-            Log.d("ComClient", "socket connected");
             JSONObject packet = new JSONObject();
             try {
                 if (this.sessionId == null) {
@@ -52,21 +54,21 @@ public class ComClient implements SocketConnectionListener {
                     this.sendMessage(packet, new RequestCallback() {
                         @Override
                         public void onSuccess(JSONObject data) {
-                            Log.i("ComClient", "Authen success" + data.toString());
+                            Log.i(TAG, "authen success " + data.toString());
                             try {
                                 userId = data.getString("user_id");
                                 sessionId = data.getString("session_id");
                                 connected = true;
                             } catch (JSONException e) {
-                                Log.e("ComClient", e.toString());
+                                Log.e(TAG, e.toString());
                             }
-                            connectionListener.onConnectionConnected(ComClient.this);
+                            connectionListener.onComConnectionConnected(ComClient.this);
                         }
 
                         @Override
                         public void onError(ComError error) {
-                            Log.e("ComClient", "Authen error" + error.toString());
-                            connectionListener.onConnectionError(ComClient.this, error);
+                            Log.e(TAG, "authen error " + error.toString());
+                            connectionListener.onComConnectionError(ComClient.this, error);
                         }
                     });
                 }
@@ -78,15 +80,15 @@ public class ComClient implements SocketConnectionListener {
                     this.sendMessage(packet, new RequestCallback() {
                         @Override
                         public void onSuccess(JSONObject data) {
-                            Log.i("ComClient", "Claimed the session " + ComClient.this.sessionId + " sucessfully");
+                            Log.i(TAG, "claimed the session " + ComClient.this.sessionId + " sucessfully");
                             connected = true;
-                            connectionListener.onConnectionConnected(ComClient.this);
+                            connectionListener.onComConnectionConnected(ComClient.this);
                         }
 
                         @Override
                         public void onError(ComError error) {
-                            Log.e("ComClient", "Claimed the session " + ComClient.this.sessionId + " failed: " + error.getMessage());
-                            Log.e("ComClient", "Get new session");
+                            Log.e(TAG, "claimed the session " + ComClient.this.sessionId + " failed: " + error.getMessage());
+                            Log.d(TAG, "create new session");
                             ComClient.this.sessionId = null;
                             ComClient.this.userId = null;
                             ComClient.this.connect(ComClient.this.accessToken);
@@ -94,7 +96,7 @@ public class ComClient implements SocketConnectionListener {
                     });
                 }
             } catch (JSONException e) {
-                Log.e("ComClient", e.getMessage());
+                Log.e(TAG, "onConnect error: " + e.getMessage());
             }
         });
 
@@ -103,7 +105,7 @@ public class ComClient implements SocketConnectionListener {
     @Override
     public void onDisconnect(boolean reconnecting) {
         this.connected = false;
-        this.connectionListener.onConnectionDisconnected(this, reconnecting);
+        this.connectionListener.onComConnectionDisconnected(this, reconnecting);
     }
 
     @Override
@@ -113,7 +115,7 @@ public class ComClient implements SocketConnectionListener {
 
     @Override
     public void onMessage(JSONObject packet) {
-        Log.i("ComClient", "onMessage: " + packet.toString());
+        Log.i(TAG, "onMessage: " + packet.toString());
         try {
             if (packet.getString("name").equalsIgnoreCase("event")) {
                 JSONObject event = packet.getJSONObject("event");
@@ -129,7 +131,8 @@ public class ComClient implements SocketConnectionListener {
                         newCall.setCallID(data.getString("call_id"));
                         newCall.setIncomingCall(true);
                         newCall.setVideoCall(data.getBoolean("video_call"));
-                        connectionListener.onIncommingCall(newCall);
+                        newCall.setCustomDataFromServer(data.getString("server_customdata"));
+                        connectionListener.onComIncommingCall(newCall);
                         break;
                     }
                     case "call_sdp":
@@ -154,12 +157,12 @@ public class ComClient implements SocketConnectionListener {
                         callback.onSuccess(packet.getJSONObject("data"));
                     } else {
                         JSONObject error = packet.getJSONObject("error");
-                        callback.onError(new ComError(error.getInt("error_code"), error.getString("message")));
+                        callback.onError(new ComError(error.getInt("err_code"), error.getString("message")));
                     }
                 }
             }
         } catch (JSONException e) {
-            Log.e("ComClient", e.getMessage());
+            Log.e(TAG, e.getMessage());
         }
     }
 
@@ -176,10 +179,12 @@ public class ComClient implements SocketConnectionListener {
     }
 
     public void connect(String accessToken) {
-        this.accessToken = accessToken;
-        executor.execute(() -> {
-            socketConnection.connect();
-        });
+        if (!isConnected()) {
+            this.accessToken = accessToken;
+            executor.execute(() -> {
+                socketConnection.connect();
+            });
+        }
     }
 
     public void disconnect() {
@@ -197,7 +202,7 @@ public class ComClient implements SocketConnectionListener {
             packet.put("request_id", request_id);
             socketConnection.send(packet);
         } catch (JSONException e) {
-            Log.e("ComClient", e.getMessage());
+            Log.e(TAG, e.getMessage());
         }
     }
 
@@ -227,18 +232,43 @@ public class ComClient implements SocketConnectionListener {
             this.sendMessage(packet, new RequestCallback() {
                 @Override
                 public void onSuccess(JSONObject data) {
-                    Log.i("ComClient", "registerPushToken success" + data.toString());
+                    Log.i(TAG, "registerPushToken success" + data.toString());
                     callback.onSuccess();
                 }
 
                 @Override
                 public void onError(ComError error) {
-                    Log.e("ComClient", "Make call error" + error.toString());
+                    Log.e(TAG, "Make call error" + error.toString());
                     callback.onError(new ComError(error.getCode(), error.getMessage()));
                 }
             });
         } catch (JSONException e) {
-            Log.e("ComClient", e.getMessage());
+            Log.e(TAG, e.getMessage());
+        }
+    }
+
+    public void unregisterPushToken(String token, ComCallback callback){
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "unregister_push_token");
+            JSONObject body = new JSONObject();
+            body.put("token", token);;
+            packet.put("body", body);
+            this.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i(TAG, "unregisterPushToken success" + data.toString());
+                    callback.onSuccess();
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e(TAG, "unregisterPushToken error" + error.toString());
+                    callback.onError(new ComError(error.getCode(), error.getMessage()));
+                }
+            });
+        } catch (JSONException e) {
+            Log.e(TAG, e.getMessage());
         }
     }
 
@@ -253,31 +283,31 @@ public class ComClient implements SocketConnectionListener {
             this.sendMessage(packet, new RequestCallback() {
                 @Override
                 public void onSuccess(JSONObject data) {
-                    Log.i("ComClient", "sendCustomMessage success" + data.toString());
+                    Log.i(TAG, "sendCustomMessage success" + data.toString());
                     callback.onSuccess();
                 }
 
                 @Override
                 public void onError(ComError error) {
-                    Log.e("ComClient", "sendCustomMessage error" + error.toString());
+                    Log.e(TAG, "sendCustomMessage error" + error.toString());
                     callback.onError(new ComError(error.getCode(), error.getMessage()));
                 }
             });
         } catch (JSONException e) {
-            Log.e("ComClient", e.getMessage());
+            Log.e(TAG, e.getMessage());
         }
     }
 
 
 
     public interface ComConnectionListener {
-        void onConnectionConnected(final ComClient client);
+        void onComConnectionConnected(final ComClient client);
 
-        void onConnectionDisconnected(final ComClient client, boolean reconnecting);
+        void onComConnectionDisconnected(final ComClient client, boolean reconnecting);
 
-        void onIncommingCall(ComCall call);
+        void onComIncommingCall(ComCall call);
 
-        void onConnectionError(final ComClient client, ComError error);
+        void onComConnectionError(final ComClient client, ComError error);
 
         void onCustomMessage(String from, JSONObject msg);
     }

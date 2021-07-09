@@ -26,7 +26,6 @@ import com.bangtran.comclient.ComCall;
 import com.bangtran.comclient.ComCallback;
 import com.bangtran.comclient.ComClient;
 import com.bangtran.comclient.ComError;
-import com.bangtran.comclient.utils.Utils;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.iid.FirebaseInstanceId;
@@ -101,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         client = new ComClient(this);
         client.setConnectionListener(new ComClient.ComConnectionListener() {
             @Override
-            public void onConnectionConnected(final ComClient client) {
+            public void onComConnectionConnected(final ComClient client) {
                 boolean isTokenRegistered = sharedPreferences.getBoolean(IS_TOKEN_REGISTERED, false);
                 if (!isTokenRegistered) {
                     FirebaseMessaging.getInstance().getToken()
@@ -148,7 +147,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             @Override
-            public void onConnectionDisconnected(ComClient client, boolean reconnecting) {
+            public void onComConnectionDisconnected(ComClient client, boolean reconnecting) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -161,7 +160,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
             @Override
-            public void onIncommingCall(ComCall call) {
+            public void onComIncommingCall(ComCall call) {
                 JSONObject info = new JSONObject();
                 try {
                     info.put("data", "test");
@@ -191,7 +190,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             @Override
-            public void onConnectionError(ComClient client, ComError error) {
+            public void onComConnectionError(ComClient client, ComError error) {
 
             }
 

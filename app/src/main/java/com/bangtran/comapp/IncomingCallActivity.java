@@ -63,7 +63,7 @@ public class IncomingCallActivity extends AppCompatActivity implements View.OnCl
         mRemoteViewContainer = (FrameLayout) findViewById(R.id.v_remote);
 
         tvFrom = (TextView) findViewById(R.id.tv_from);
-        tvFrom.setText(mCall.getCalleeID());
+        tvFrom.setText(mCall.getFrom());
 
         tvState = (TextView) findViewById(R.id.tv_state);
 
