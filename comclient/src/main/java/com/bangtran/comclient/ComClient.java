@@ -17,7 +17,7 @@ public class ComClient implements SocketConnectionListener {
     public static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private Context appContext;
-    ComConnectionListener connectionListener;
+    private ComConnectionListener connectionListener;
     private SocketConnection socketConnection;
 
     int currentRequestId;
@@ -30,14 +30,15 @@ public class ComClient implements SocketConnectionListener {
     private ConcurrentHashMap<Integer, RequestCallback> requestCallbacks;
     private Vector<ComCall> comCalls;
 
+    private final String endpointUrl = "ws://203.113.138.21:4417";
+
     public ComClient(Context appContext) {
         this.appContext = appContext;
-        this.serverURL = "ws://203.113.138.21:4417";
-        socketConnection = new SocketConnection(serverURL, this);
+        socketConnection = new SocketConnection(endpointUrl, this);
         connected = false;
-        comCalls = new Vector<ComCall>();
         sessionId = null;
         userId = null;
+        comCalls = new Vector<ComCall>();
         requestCallbacks = new ConcurrentHashMap<Integer, RequestCallback>();
         currentRequestId = 0;
     }
@@ -133,6 +134,7 @@ public class ComClient implements SocketConnectionListener {
                         newCall.setVideoCall(data.getBoolean("video_call"));
                         newCall.setCustomDataFromServer(data.getString("server_customdata"));
                         connectionListener.onComIncommingCall(newCall);
+                        newCall.ringing();
                         break;
                     }
                     case "call_sdp":
@@ -166,18 +168,6 @@ public class ComClient implements SocketConnectionListener {
         }
     }
 
-    public String getUserId() {
-        return userId;
-    }
-
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    public boolean isConnected() {
-        return connected;
-    }
-
     public void connect(String accessToken) {
         if (!isConnected()) {
             this.accessToken = accessToken;
@@ -186,15 +176,9 @@ public class ComClient implements SocketConnectionListener {
             });
         }
     }
-
     public void disconnect() {
         this.socketConnection.disconnect();
     }
-
-    public void setConnectionListener(ComConnectionListener listener) {
-        connectionListener = listener;
-    }
-
     public void sendMessage(JSONObject packet, RequestCallback callback) {
         int request_id = ++currentRequestId;
         requestCallbacks.put(request_id, callback);
@@ -205,73 +189,6 @@ public class ComClient implements SocketConnectionListener {
             Log.e(TAG, e.getMessage());
         }
     }
-
-    public void addNewCall(ComCall call) {
-        this.comCalls.add(call);
-    }
-
-    public void removeCall(ComCall call){
-        this.comCalls.remove(call);
-    }
-
-    public ComCall getCall(String callId) {
-        for (ComCall comCall : comCalls) {
-            if (comCall.getCallId().equalsIgnoreCase(callId))
-                return comCall;
-        }
-        return null;
-    }
-
-    public void registerPushToken(String token, ComCallback callback){
-        JSONObject packet = new JSONObject();
-        try {
-            packet.put("event", "register_push_token");
-            JSONObject body = new JSONObject();
-            body.put("token", token);;
-            packet.put("body", body);
-            this.sendMessage(packet, new RequestCallback() {
-                @Override
-                public void onSuccess(JSONObject data) {
-                    Log.i(TAG, "registerPushToken success" + data.toString());
-                    callback.onSuccess();
-                }
-
-                @Override
-                public void onError(ComError error) {
-                    Log.e(TAG, "Make call error" + error.toString());
-                    callback.onError(new ComError(error.getCode(), error.getMessage()));
-                }
-            });
-        } catch (JSONException e) {
-            Log.e(TAG, e.getMessage());
-        }
-    }
-
-    public void unregisterPushToken(String token, ComCallback callback){
-        JSONObject packet = new JSONObject();
-        try {
-            packet.put("event", "unregister_push_token");
-            JSONObject body = new JSONObject();
-            body.put("token", token);;
-            packet.put("body", body);
-            this.sendMessage(packet, new RequestCallback() {
-                @Override
-                public void onSuccess(JSONObject data) {
-                    Log.i(TAG, "unregisterPushToken success" + data.toString());
-                    callback.onSuccess();
-                }
-
-                @Override
-                public void onError(ComError error) {
-                    Log.e(TAG, "unregisterPushToken error" + error.toString());
-                    callback.onError(new ComError(error.getCode(), error.getMessage()));
-                }
-            });
-        } catch (JSONException e) {
-            Log.e(TAG, e.getMessage());
-        }
-    }
-
     public void sendCustomMessage(String to, JSONObject msg, ComCallback callback){
         JSONObject packet = new JSONObject();
         try {
@@ -297,13 +214,89 @@ public class ComClient implements SocketConnectionListener {
             Log.e(TAG, e.getMessage());
         }
     }
+    public void registerPushToken(String token, ComCallback callback){
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "register_push_token");
+            JSONObject body = new JSONObject();
+            body.put("token", token);;
+            packet.put("body", body);
+            this.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i(TAG, "registerPushToken success" + data.toString());
+                    callback.onSuccess();
+                }
 
+                @Override
+                public void onError(ComError error) {
+                    Log.e(TAG, "Make call error" + error.toString());
+                    callback.onError(new ComError(error.getCode(), error.getMessage()));
+                }
+            });
+        } catch (JSONException e) {
+            Log.e(TAG, e.getMessage());
+        }
+    }
+    public void unregisterPushToken(String token, ComCallback callback){
+        JSONObject packet = new JSONObject();
+        try {
+            packet.put("event", "unregister_push_token");
+            JSONObject body = new JSONObject();
+            body.put("token", token);;
+            packet.put("body", body);
+            this.sendMessage(packet, new RequestCallback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    Log.i(TAG, "unregisterPushToken success" + data.toString());
+                    callback.onSuccess();
+                }
+
+                @Override
+                public void onError(ComError error) {
+                    Log.e(TAG, "unregisterPushToken error" + error.toString());
+                    callback.onError(new ComError(error.getCode(), error.getMessage()));
+                }
+            });
+        } catch (JSONException e) {
+            Log.e(TAG, e.getMessage());
+        }
+    }
+    public void addNewCall(ComCall call) {
+        this.comCalls.add(call);
+    }
+    public void removeCall(ComCall call){
+        this.comCalls.remove(call);
+    }
+
+    // getters
+    public String getUserId() {
+        return userId;
+    }
+    public String getSessionId() {
+        return sessionId;
+    }
+    public boolean isConnected() {
+        return connected;
+    }
+    public ComCall getCall(String callId) {
+        for (ComCall comCall : comCalls) {
+            if (comCall.getCallId().equalsIgnoreCase(callId))
+                return comCall;
+        }
+        return null;
+    }
+
+    // setters
+    public void setConnectionListener(ComConnectionListener listener) {
+        connectionListener = listener;
+    }
 
 
     public interface ComConnectionListener {
         void onComConnectionConnected(final ComClient client);
 
-        void onComConnectionDisconnected(final ComClient client, boolean reconnecting);
+        void onComConnectionDisconnected(final ComClient client, boolean reconnect);
 
         void onComIncommingCall(ComCall call);
 

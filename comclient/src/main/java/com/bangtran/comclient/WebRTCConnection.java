@@ -36,6 +36,7 @@ public class WebRTCConnection {
     private final PeerConnectionObserver pcObserver = new PeerConnectionObserver();
     private WebRTCListener webRTCListener;
     private PeerConnection pc;
+
     private VideoCapturer videoCapturer;
 
     private AudioSource audioSource;
@@ -53,27 +54,43 @@ public class WebRTCConnection {
         webRTCListener = listener;
     }
 
+    public EglBase.Context getEglContext() {
+        return eglContext;
+    }
+    public void setVideoEnabled(boolean enabled){
+        if (videoTrack != null)
+            videoTrack.setEnabled(enabled);
+
+
+    }
+    public void setAudioEnable(boolean enabled){
+        if (audioTrack != null)
+            audioTrack.setEnabled(enabled);
+    }
+
     public void initConnection(HandleWebRTCCallback callback) {
         ComClient.executor.execute(() -> {
-            if (eglContext == null) {
-                eglContext = EglBase.create().getEglBaseContext();
-            }
-            if (pcFactory == null) {
-                PeerConnectionFactory.initialize(
-                        PeerConnectionFactory.InitializationOptions.builder(callback.getAppContext())
-                                .setFieldTrials(ComMediaConstraint.VIDEO_VP8_INTEL_HW_ENCODER_FIELDTRIAL)
-                                .setEnableInternalTracer(true)
-                                .createInitializationOptions());
-                final VideoEncoderFactory encoderFactory;
-                final VideoDecoderFactory decoderFactory;
-                encoderFactory = new DefaultVideoEncoderFactory(eglContext, true /* enableIntelVp8Encoder */, false);
-                decoderFactory = new DefaultVideoDecoderFactory(eglContext);
+            synchronized (this) {
+                if (eglContext == null) {
+                    eglContext = EglBase.create().getEglBaseContext();
+                }
+                if (pcFactory == null) {
+                    PeerConnectionFactory.initialize(
+                            PeerConnectionFactory.InitializationOptions.builder(callback.getAppContext())
+                                    .setFieldTrials(ComMediaConstraint.VIDEO_VP8_INTEL_HW_ENCODER_FIELDTRIAL)
+                                    .setEnableInternalTracer(true)
+                                    .createInitializationOptions());
+                    final VideoEncoderFactory encoderFactory;
+                    final VideoDecoderFactory decoderFactory;
+                    encoderFactory = new DefaultVideoEncoderFactory(eglContext, true /* enableIntelVp8Encoder */, false);
+                    decoderFactory = new DefaultVideoDecoderFactory(eglContext);
 
-                pcFactory = PeerConnectionFactory.builder()
-                        .setOptions(new PeerConnectionFactory.Options())
-                        .setVideoEncoderFactory(encoderFactory)
-                        .setVideoDecoderFactory(decoderFactory)
-                        .createPeerConnectionFactory();
+                    pcFactory = PeerConnectionFactory.builder()
+                            .setOptions(new PeerConnectionFactory.Options())
+                            .setVideoEncoderFactory(encoderFactory)
+                            .setVideoDecoderFactory(decoderFactory)
+                            .createPeerConnectionFactory();
+                }
             }
             // set constraint
             comMediaConstraint = callback.getMediaConstraint();
@@ -177,19 +194,6 @@ public class WebRTCConnection {
         }
     }
 
-    public void setVideoEnabled(boolean enabled){
-        if (videoTrack != null)
-            videoTrack.setEnabled(enabled);
-
-
-    }
-
-    public void setAudioEnable(boolean enabled){
-        if (audioTrack != null)
-            audioTrack.setEnabled(enabled);
-    }
-
-
     public void close() {
         if (remoteStream != null) {
             remoteStream.dispose();
@@ -211,10 +215,6 @@ public class WebRTCConnection {
             pc.close();
         pc = null;
         localSdp = null;
-    }
-
-    public EglBase.Context getEglContext() {
-        return eglContext;
     }
 
 

@@ -126,16 +126,9 @@ public class ComCall implements WebRTCListener {
         });
     }
 
-    public SurfaceViewRenderer getLocalView() {
-        if (this.localView == null)
-            this.localView = new SurfaceViewRenderer(this.appContext);
-        return this.localView;
-    }
 
-    public SurfaceViewRenderer getRemoteView() {
-        if (this.remoteView == null)
-            this.remoteView = new SurfaceViewRenderer(this.appContext);
-        return this.remoteView;
+    public Context getAppContext() {
+        return appContext;
     }
 
     public String getCallId() {
@@ -149,33 +142,36 @@ public class ComCall implements WebRTCListener {
     public String getTo() {
         return to;
     }
-    
-    public boolean isIncomingCall() {
-        return incomingCall;
-    }
-
-    public void setIncomingCall(boolean incomingCall) {
-        this.incomingCall = incomingCall;
-    }
 
     public String getCustomData() {
         return customData;
-    }
-
-    // setters
-
-    public void setCustom(String customData) {
-        this.customData = customData;
     }
 
     public String getCustomDataFromYourServer() {
         return customDataFromServer;
     }
 
-    public void setCustomDataFromServer(String customDataFromServer) {
-        this.customDataFromServer = customDataFromServer;
+    public boolean isIncomingCall() {
+        return incomingCall;
     }
 
+    public boolean isVideoCall() {
+        return videoCall;
+    }
+
+    public SurfaceViewRenderer getLocalView() {
+        if (this.localView == null)
+            this.localView = new SurfaceViewRenderer(this.appContext);
+        return this.localView;
+    }
+
+    public SurfaceViewRenderer getRemoteView() {
+        if (this.remoteView == null)
+            this.remoteView = new SurfaceViewRenderer(this.appContext);
+        return this.remoteView;
+    }
+
+    // setters
     public void setCallListener(ComCallListener listener) {
         this.callListener = listener;
     }
@@ -184,34 +180,20 @@ public class ComCall implements WebRTCListener {
         this.callID = callID;
     }
 
-    public Context getAppContext() {
-        return appContext;
-    }
-
-    public boolean isVideoCall() {
-        return videoCall;
+    public void setIncomingCall(boolean incomingCall) {
+        this.incomingCall = incomingCall;
     }
 
     public void setVideoCall(boolean video) {
         this.videoCall = video;
     }
 
-    public void renderLocalView(boolean isOverlay) {
-        if (this.localStream != null && this.localStream.videoTracks != null && this.localStream.videoTracks.size() > 0) {
-            this.localView.init(this.webRTCConnection.getEglContext(), null);
-            this.localView.setMirror(true);
-            this.localView.setZOrderMediaOverlay(isOverlay);
-            this.localStream.videoTracks.get(0).addSink(this.localView);
-        }
+    public void setCustom(String customData) {
+        this.customData = customData;
     }
 
-    public void renderRemoteView(boolean isOverlay) {
-        if (this.remoteStream != null && this.remoteStream.videoTracks != null && this.remoteStream.videoTracks.size() > 0) {
-            this.remoteView.init(this.webRTCConnection.getEglContext(), null);
-            this.remoteView.setMirror(true);
-            this.remoteView.setZOrderMediaOverlay(isOverlay);
-            this.remoteStream.videoTracks.get(0).addSink(this.remoteView);
-        }
+    public void setCustomDataFromServer(String customData) {
+        this.customDataFromServer = customData;
     }
 
     public void makeCall() {
@@ -417,6 +399,24 @@ public class ComCall implements WebRTCListener {
         }
         if (audioManager != null)
             audioManager.setSpeakerphoneOn(isSpeakerOn);
+    }
+
+    public void renderLocalView(boolean isOverlay) {
+        if (this.localStream != null && this.localStream.videoTracks != null && this.localStream.videoTracks.size() > 0) {
+            this.localView.init(this.webRTCConnection.getEglContext(), null);
+            this.localView.setMirror(true);
+            this.localView.setZOrderMediaOverlay(isOverlay);
+            this.localStream.videoTracks.get(0).addSink(this.localView);
+        }
+    }
+
+    public void renderRemoteView(boolean isOverlay) {
+        if (this.remoteStream != null && this.remoteStream.videoTracks != null && this.remoteStream.videoTracks.size() > 0) {
+            this.remoteView.init(this.webRTCConnection.getEglContext(), null);
+            this.remoteView.setMirror(true);
+            this.remoteView.setZOrderMediaOverlay(isOverlay);
+            this.remoteStream.videoTracks.get(0).addSink(this.remoteView);
+        }
     }
 
     public void sendCallInfo(JSONObject info) {
