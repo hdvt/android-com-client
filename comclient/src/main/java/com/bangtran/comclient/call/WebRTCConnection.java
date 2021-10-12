@@ -1,7 +1,8 @@
-package com.bangtran.comclient;
+package com.bangtran.comclient.call;
 
-import android.graphics.Camera;
 import android.util.Log;
+
+import com.bangtran.comclient.ComClient;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,7 +28,6 @@ import org.webrtc.VideoDecoderFactory;
 import org.webrtc.VideoEncoderFactory;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
-import org.apache.commons.text.StringEscapeUtils;
 
 public class WebRTCConnection {
     private static PeerConnectionFactory pcFactory;

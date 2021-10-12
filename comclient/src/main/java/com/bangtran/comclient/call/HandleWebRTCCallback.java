@@ -1,9 +1,8 @@
-package com.bangtran.comclient;
+package com.bangtran.comclient.call;
 
 import android.content.Context;
 
 import org.json.JSONObject;
-import org.webrtc.EglBase;
 import org.webrtc.PeerConnection;
 
 import java.util.List;

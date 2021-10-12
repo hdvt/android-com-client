@@ -3,10 +3,21 @@ package com.bangtran.comclient;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
+import com.bangtran.comclient.call.ComCall;
+import com.bangtran.comclient.chat.ComChatEvent;
+import com.bangtran.comclient.chat.Conversation;
+import com.bangtran.comclient.chat.ConversationOption;
+import com.bangtran.comclient.chat.Message;
+import com.bangtran.comclient.chat.User;
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.webrtc.PeerConnectionFactory;
 
+import java.text.ParseException;
+import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -27,10 +38,11 @@ public class ComClient implements SocketConnectionListener {
     private String sessionId;
     private String userId;
 
-    private ConcurrentHashMap<Integer, RequestCallback> requestCallbacks;
+    private ConcurrentHashMap<Integer, ComCallback<JSONObject>> requestCallbacks;
     private Vector<ComCall> comCalls;
 
-    private final String endpointUrl = "ws://203.113.138.21:4417";
+//    private final String endpointUrl = "ws://203.113.138.21:4417";
+    private final String endpointUrl = "http://192.168.31.113";
 
     public ComClient(Context appContext) {
         this.appContext = appContext;
@@ -39,7 +51,7 @@ public class ComClient implements SocketConnectionListener {
         sessionId = null;
         userId = null;
         comCalls = new Vector<ComCall>();
-        requestCallbacks = new ConcurrentHashMap<Integer, RequestCallback>();
+        requestCallbacks = new ConcurrentHashMap<Integer, ComCallback<JSONObject>>();
         currentRequestId = 0;
     }
     @Override
@@ -52,7 +64,7 @@ public class ComClient implements SocketConnectionListener {
                     JSONObject body = new JSONObject();
                     body.put("token", accessToken);
                     packet.put("body", body);
-                    this.sendMessage(packet, new RequestCallback() {
+                    this.sendMessage(packet, new ComCallback<JSONObject>() {
                         @Override
                         public void onSuccess(JSONObject data) {
                             Log.i(TAG, "authen success " + data.toString());
@@ -77,8 +89,9 @@ public class ComClient implements SocketConnectionListener {
                     packet.put("event", "claim");
                     JSONObject body = new JSONObject();
                     body.put("session_id", this.sessionId);
+                    body.put("token", this.accessToken);
                     packet.put("body", body);
-                    this.sendMessage(packet, new RequestCallback() {
+                    this.sendMessage(packet, new ComCallback<JSONObject>() {
                         @Override
                         public void onSuccess(JSONObject data) {
                             Log.i(TAG, "claimed the session " + ComClient.this.sessionId + " sucessfully");
@@ -105,8 +118,10 @@ public class ComClient implements SocketConnectionListener {
 
     @Override
     public void onDisconnect(boolean reconnecting) {
-        this.connected = false;
-        this.connectionListener.onComConnectionDisconnected(this, reconnecting);
+        if (this.connected) {
+            this.connected = false;
+            this.connectionListener.onComConnectionDisconnected(this, reconnecting);
+        }
     }
 
     @Override
@@ -149,11 +164,37 @@ public class ComClient implements SocketConnectionListener {
                         }
                         break;
                     }
+                    case "chat_message": {
+                        Message msg = Message.parseFrom(data.getJSONObject("message"));
+                        ComChatEvent chatEvent = new ComChatEvent(ComChatEvent.EventType.values()[data.getInt("type")], msg);
+                        if (chatEvent.getEventType() == ComChatEvent.EventType.INSERT){
+                            msg.updateState(this, Message.State.DELIVERED, new ComCallback<JSONObject>() {
+                                @Override
+                                public void onSuccess(@Nullable @org.jetbrains.annotations.Nullable JSONObject data) {
+                                    Log.d(TAG, "update message state success");
+                                }
+
+                                @Override
+                                public void onError(ComError error) {
+                                    Log.e(TAG, "update message state error " + error.getMessage());
+
+                                }
+                            });
+                        }
+                        this.connectionListener.onComChatEvent(this, chatEvent);
+                        break;
+                    }
+                    case "chat_conversation": {
+                        Conversation conversation = Conversation.parseFrom((data.getJSONObject("conversation")));
+                        ComChatEvent chatEvent = new ComChatEvent(ComChatEvent.EventType.values()[data.getInt("type")], conversation);
+                        this.connectionListener.onComChatEvent(this, chatEvent);
+                        break;
+                    }
                 }
             } else if (!packet.isNull("request_id")) {
                 int request_id = packet.getInt("request_id");
                 if (requestCallbacks.containsKey(request_id)) {
-                    RequestCallback callback = requestCallbacks.get(request_id);
+                    ComCallback<JSONObject> callback = requestCallbacks.get(request_id);
                     requestCallbacks.remove(request_id);
                     if (packet.getString("name").equalsIgnoreCase("success")) {
                         callback.onSuccess(packet.getJSONObject("data"));
@@ -163,7 +204,7 @@ public class ComClient implements SocketConnectionListener {
                     }
                 }
             }
-        } catch (JSONException e) {
+        } catch (JSONException | ParseException e) {
             Log.e(TAG, e.getMessage());
         }
     }
@@ -179,7 +220,7 @@ public class ComClient implements SocketConnectionListener {
     public void disconnect() {
         this.socketConnection.disconnect();
     }
-    public void sendMessage(JSONObject packet, RequestCallback callback) {
+    public void sendMessage(JSONObject packet, ComCallback<JSONObject> callback) {
         int request_id = ++currentRequestId;
         requestCallbacks.put(request_id, callback);
         try {
@@ -189,7 +230,7 @@ public class ComClient implements SocketConnectionListener {
             Log.e(TAG, e.getMessage());
         }
     }
-    public void sendCustomMessage(String to, JSONObject msg, ComCallback callback){
+    public void sendCustomMessage(String to, JSONObject msg, ComCallback<JSONObject> callback){
         JSONObject packet = new JSONObject();
         try {
             packet.put("event", "custom_message");
@@ -197,11 +238,11 @@ public class ComClient implements SocketConnectionListener {
             body.put("to", to);
             body.put("message", msg.toString());;
             packet.put("body", body);
-            this.sendMessage(packet, new RequestCallback() {
+            this.sendMessage(packet, new ComCallback<JSONObject>() {
                 @Override
                 public void onSuccess(JSONObject data) {
                     Log.i(TAG, "sendCustomMessage success" + data.toString());
-                    callback.onSuccess();
+                    callback.onSuccess(data);
                 }
 
                 @Override
@@ -214,18 +255,18 @@ public class ComClient implements SocketConnectionListener {
             Log.e(TAG, e.getMessage());
         }
     }
-    public void registerPushToken(String token, ComCallback callback){
+    public void registerPushToken(String token, ComCallback<JSONObject> callback){
         JSONObject packet = new JSONObject();
         try {
             packet.put("event", "register_push_token");
             JSONObject body = new JSONObject();
             body.put("token", token);;
             packet.put("body", body);
-            this.sendMessage(packet, new RequestCallback() {
+            this.sendMessage(packet, new ComCallback<JSONObject>() {
                 @Override
                 public void onSuccess(JSONObject data) {
                     Log.i(TAG, "registerPushToken success" + data.toString());
-                    callback.onSuccess();
+                    callback.onSuccess(data);
                 }
 
                 @Override
@@ -238,18 +279,18 @@ public class ComClient implements SocketConnectionListener {
             Log.e(TAG, e.getMessage());
         }
     }
-    public void unregisterPushToken(String token, ComCallback callback){
+    public void unregisterPushToken(String token, ComCallback<JSONObject> callback){
         JSONObject packet = new JSONObject();
         try {
             packet.put("event", "unregister_push_token");
             JSONObject body = new JSONObject();
             body.put("token", token);;
             packet.put("body", body);
-            this.sendMessage(packet, new RequestCallback() {
+            this.sendMessage(packet, new ComCallback<JSONObject>() {
                 @Override
                 public void onSuccess(JSONObject data) {
                     Log.i(TAG, "unregisterPushToken success" + data.toString());
-                    callback.onSuccess();
+                    callback.onSuccess(data);
                 }
 
                 @Override
@@ -287,11 +328,186 @@ public class ComClient implements SocketConnectionListener {
         return null;
     }
 
+    public ComConnectionListener getConnectionListener() {
+        return connectionListener;
+    }
+
+    public void getLastConversations(int count, ComCallback<List<Conversation>> callback){
+        loadConversations(-1, -1, count, callback);
+    }
+
+    public void getConversationsBefore(long date, int count, ComCallback<List<Conversation>> callback){
+        loadConversations(-1, date, count, callback);
+    }
+
+    private void loadConversations(long greaterDate, long smallerDate, int limit, ComCallback<List<Conversation>> callback ){
+        executor.execute(() -> {
+            JSONObject packet = new JSONObject();
+            try {
+                packet.put("event", "chat_load_conversations");
+                JSONObject body = new JSONObject();
+                if (greaterDate > -1)
+                    body.put("lastupdate_greater", greaterDate);
+                if (smallerDate > -1)
+                    body.put("lastupdate_smaller", smallerDate);
+                body.put("limit", limit);
+                packet.put("body", body);
+                this.sendMessage(packet, new ComCallback<JSONObject>() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        Log.d(TAG, "conversation " + data.toString());
+                        try {
+                            List<Conversation> conversations = new Vector<>();
+                            JSONArray convJson = data.getJSONArray("conversations");
+                            for(int i = 0; i < convJson.length(); i++){
+                                conversations.add(Conversation.parseFrom(convJson.getJSONObject(i)));
+                            }
+                            for (int i = 0; i < conversations.size(); i++){
+                                if (conversations.get(i).getLastMessage(null).getState() == Message.State.SENT){
+                                    conversations.get(i).getLastMessage(null).updateState(ComClient.this, Message.State.DELIVERED, new ComCallback<JSONObject>() {
+                                        @Override
+                                        public void onSuccess(@Nullable @org.jetbrains.annotations.Nullable JSONObject data) {
+                                            Log.d(TAG, "update message state success");
+                                        }
+                                        @Override
+                                        public void onError(ComError error) {
+                                            Log.e(TAG, "update message state error " + error.getMessage());
+
+                                        }
+                                    });
+                                }
+                            }
+                            callback.onSuccess(conversations);
+                        } catch (JSONException | ParseException e) {
+                            Log.e(TAG, e.toString());
+                        }
+
+                    }
+                    @Override
+                    public void onError(ComError error) {
+                        Log.e(TAG, "get conversations error " + error.toString());
+                    }
+                });
+
+
+            } catch (JSONException e) {
+                Log.e(TAG, "get conversations error: " + e.getMessage());
+            }
+        });
+    }
+
+    public void getConversationByUserId(String userId, ComCallback<Conversation> callback){
+        executor.execute(() -> {
+            JSONObject packet = new JSONObject();
+            try {
+                packet.put("event", "chat_get_conversation_info");
+                JSONObject body = new JSONObject();
+                JSONArray participants = new JSONArray();
+                participants.put(userId);
+                body.put("participants", participants);
+                packet.put("body", body);
+                this.sendMessage(packet, new ComCallback<JSONObject>() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        Log.d(TAG, "getConversationByUserId " + data.toString());
+                        try {
+                            callback.onSuccess(Conversation.parseFrom(data.getJSONObject("conversation")));
+                        } catch (JSONException | ParseException e) {
+                            Log.e(TAG, e.toString());
+                        }
+
+                    }
+                    @Override
+                    public void onError(ComError error) {
+                        Log.e(TAG, "getConversationByUserId error " + error.toString());
+                        callback.onError(error);
+                    }
+                });
+
+
+            } catch (JSONException e) {
+                Log.e(TAG, "get conversations error: " + e.getMessage());
+            }
+        });
+    }
+
+    public void getTotalUnread(ComCallback<Integer> callback){
+        //// TODO: 13/08/2021
+        executor.execute(() -> {
+            JSONObject packet = new JSONObject();
+            try {
+                packet.put("event", "chat_unread_conversation_count");
+                JSONObject body = new JSONObject();
+                packet.put("body", body);
+                this.sendMessage(packet, new ComCallback<JSONObject>() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        try {
+                            callback.onSuccess(data.getInt("total_unread"));
+                        } catch (JSONException e) {
+                            Log.e(TAG, e.toString());
+                        }
+
+                    }
+                    @Override
+                    public void onError(ComError error) {
+                        Log.e(TAG, "getTotalUnread error " + error.toString());
+                    }
+                });
+
+
+            } catch (JSONException e) {
+                Log.e(TAG, "getTotalUnread error: " + e.getMessage());
+            }
+        });
+    }
+
+
     // setters
     public void setConnectionListener(ComConnectionListener listener) {
         connectionListener = listener;
     }
 
+    public void createConversation(List<User> participants, ConversationOption options, ComCallback<Conversation> callback){
+        executor.execute(() -> {
+            JSONObject packet = new JSONObject();
+            try {
+                packet.put("event", "chat_create_conversation");
+                JSONObject body = new JSONObject();
+                body.put("name", options.getName());
+                body.put("group", options.isGroup());
+                JSONArray participantsJs = new JSONArray();
+                for (int i = 0; i < participants.size(); i++){
+                    JSONObject participant = new JSONObject();
+                    participant.put("user_id", participants.get(i).getUserId());
+                    participant.put("name", participants.get(i).getName().isEmpty() ? null : participants.get(i).getName());
+                    participantsJs.put(participant);
+                }
+                body.put("participants", participantsJs);
+                packet.put("body", body);
+                this.sendMessage(packet, new ComCallback<JSONObject>() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        Log.d(TAG, "createConversation " + data.toString());
+                        try {
+                            callback.onSuccess(Conversation.parseFrom(data.getJSONObject("conversation")));
+                        } catch (JSONException | ParseException e) {
+                            Log.e(TAG, e.toString());
+                        }
+
+                    }
+                    @Override
+                    public void onError(ComError error) {
+                        Log.e(TAG, "createConversation error " + error.toString());
+                    }
+                });
+
+
+            } catch (JSONException e) {
+                Log.e(TAG, "createConversation error: " + e.getMessage());
+            }
+        });
+    }
 
     public interface ComConnectionListener {
         void onComConnectionConnected(final ComClient client);
@@ -303,6 +519,8 @@ public class ComClient implements SocketConnectionListener {
         void onComConnectionError(final ComClient client, ComError error);
 
         void onCustomMessage(String from, JSONObject msg);
+
+        void onComChatEvent(final ComClient client, ComChatEvent event);
     }
 
 }

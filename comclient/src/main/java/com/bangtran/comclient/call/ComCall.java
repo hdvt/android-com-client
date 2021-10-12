@@ -1,14 +1,16 @@
-package com.bangtran.comclient;
+package com.bangtran.comclient.call;
 
 
 import android.content.Context;
-import android.graphics.Camera;
 import android.media.AudioManager;
 import android.util.Log;
 
+import com.bangtran.comclient.ComCallback;
+import com.bangtran.comclient.ComClient;
+import com.bangtran.comclient.ComError;
+
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.webrtc.EglBase;
 import org.webrtc.IceCandidate;
 import org.webrtc.MediaStream;
 import org.webrtc.PeerConnection;
@@ -231,7 +233,7 @@ public class ComCall implements WebRTCListener {
                     body.put("offer_jsep", jsep);
                     body.put("custom_data", getCustomData());
                     packet.put("body", body);
-                    client.sendMessage(packet, new RequestCallback() {
+                    client.sendMessage(packet, new ComCallback<JSONObject>() {
                         @Override
                         public void onSuccess(JSONObject data) {
                             Log.i(TAG, "makeCall success" + data.toString());
@@ -299,7 +301,7 @@ public class ComCall implements WebRTCListener {
                     body.put("call_id", getCallId());
                     body.put("offer_jsep", jsep);
                     packet.put("body", body);
-                    client.sendMessage(packet, new RequestCallback() {
+                    client.sendMessage(packet, new ComCallback<JSONObject>() {
                         @Override
                         public void onSuccess(JSONObject data) {
                             Log.i(TAG, "answerCall success" + data.toString());
@@ -335,7 +337,7 @@ public class ComCall implements WebRTCListener {
             JSONObject body = new JSONObject();
             body.put("call_id", getCallId());
             packet.put("body", body);
-            client.sendMessage(packet, new RequestCallback() {
+            client.sendMessage(packet, new ComCallback<JSONObject>() {
                 @Override
                 public void onSuccess(JSONObject data) {
                     Log.i(TAG, "ringing success" + data.toString());
@@ -359,7 +361,7 @@ public class ComCall implements WebRTCListener {
             JSONObject body = new JSONObject();
             body.put("call_id", getCallId());
             packet.put("body", body);
-            client.sendMessage(packet, new RequestCallback() {
+            client.sendMessage(packet, new ComCallback<JSONObject>() {
                 @Override
                 public void onSuccess(JSONObject data) {
                     Log.i(TAG, "hangup success" + data.toString());
@@ -427,7 +429,7 @@ public class ComCall implements WebRTCListener {
             body.put("call_id", getCallId());
             body.put("message", info.toString());
             packet.put("body", body);
-            client.sendMessage(packet, new RequestCallback() {
+            client.sendMessage(packet, new ComCallback<JSONObject>() {
                 @Override
                 public void onSuccess(JSONObject data) {
                     Log.i(TAG, "sendCandidate success" + data.toString());
@@ -514,7 +516,7 @@ public class ComCall implements WebRTCListener {
             }
             body.put("candidate", cand);
             Log.d(TAG, "onIceCandidate" + packet.toString());
-            client.sendMessage(packet, new RequestCallback() {
+            client.sendMessage(packet, new ComCallback<JSONObject>() {
                 @Override
                 public void onSuccess(JSONObject data) {
                     Log.i(TAG, "sendCandidate success" + data.toString());

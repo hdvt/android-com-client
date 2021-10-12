@@ -1,4 +1,4 @@
-package com.bangtran.comclient;
+package com.bangtran.comclient.call;
 
 public class ComMediaConstraint {
     public static final String VIDEO_TRACK_ID = "ARDAMSv0";
